@@ -2,6 +2,7 @@
 
 #include <SFML/Main.hpp>
 
+#include <stack>
 #include <string>
 #include <fstream>
 
@@ -11,12 +12,15 @@
 class Chip8
 {
 private:
+	// program counter is ROM.tellg()
 	std::ifstream ROM;
 	sf::RenderWindow window;
 	Monitor monitor;
 
-	byte registers[0x0F];
+	short i = 0x0000;
+	byte registers[0x10];
 	byte memory[0x1000];
+	std::stack<short> stack;
 
 	sf::Clock delay, sound;
 	sf::Event event;
