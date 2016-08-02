@@ -64,7 +64,7 @@ void Chip8::read()
 	
 	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();
 
-	std::cout << "Buffer: " << std::hex  << std::setfill('0') << std::setw(2) << (int)instruct_buff[0] << std::setfill('0') << std::setw(2) << (int)instruct_buff[1] << "\n";
+	//std::cout << "Buffer: " << std::hex  << std::setfill('0') << std::setw(2) << (int)instruct_buff[0] << std::setfill('0') << std::setw(2) << (int)instruct_buff[1] << "\n";
 	
 	if (left_nibble(instruct_buff[0]) == 0)
 	{
@@ -84,28 +84,28 @@ void Chip8::read()
 			// TODO: Implement subroutine calls 
 		}
 	}
-	else if (left_nibble(instruct_buff[0] == 1))	// jump instruction
+	else if (left_nibble(instruct_buff[0]) == 1)	// jump instruction
 	{
+		debug_print_registers();
 		// TODO: Test jump opcode
-		std::cout << "JUMP CALLED\n";
+		//std::cout << "JUMP CALLED\n";
 		short jmp = 0x0000;
-		//std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
-		jmp = (right_nibble(instruct_buff[0]) << 4);
-		//std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
-		jmp <<= 12;
-		//std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
+		jmp = (right_nibble(instruct_buff[0]) >> 4);
+		//std::cout << "Debug jmp: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
+		jmp <<= 8;
+		//std::cout << "Debug jmp: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
 		jmp += instruct_buff[1];
+		//std::cout << "Debug jmp: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
 		ROM.seekg(jmp);
 	}
 	else if (left_nibble(instruct_buff[0]) == 2)	// call subroutine
 	{
 		stack.push((short)ROM.tellg());
 		short jmp = 0x0000;
-		std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
-		jmp = (right_nibble(instruct_buff[0]) << 4);
-		std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
-		jmp <<= 12;
-		std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
+		jmp = (right_nibble(instruct_buff[0]) >> 4);
+		//std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
+		jmp <<= 8;
+		//std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
 		jmp += instruct_buff[1];
 		ROM.seekg(jmp);
 	}
@@ -193,4 +193,11 @@ void Chip8::op_clear_screen()
 }
 Chip8::~Chip8()
 {
+}
+
+void Chip8::debug_print_registers()
+{
+	for (int i = 0; i < 16; i++)
+		std::cout << std::hex << (int)registers[i] << " ";
+	std::cout << "\n---\n";
 }

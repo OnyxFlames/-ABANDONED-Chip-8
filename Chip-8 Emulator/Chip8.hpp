@@ -37,6 +37,7 @@ public:
 	Chip8();
 	void run();
 	bool load_rom(const std::string ROM_location);
+	void debug_print_registers();
 	~Chip8();
 };
 
