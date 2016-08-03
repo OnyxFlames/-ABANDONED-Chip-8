@@ -8,11 +8,12 @@
 
 #include "byte.hpp"
 #include "Display.hpp"
-
+#include "Debugger.hpp"
 class Chip8
 {
 private:
 	// program counter is ROM.tellg()
+	Debugger debugger;
 	std::ifstream ROM;
 	sf::RenderWindow window;
 	Monitor monitor;

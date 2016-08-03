@@ -6,8 +6,9 @@
 
 Chip8::Chip8()
 {
+	debugger.set_write(false);
 	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), "Chip-8 - NO ROM");
-	init_all(monitor, pixel_size, sf::Color(127, 127, 127));
+	init_all(monitor, pixel_size, sf::Color(100, 100, 100));
 }
 
 void Chip8::run()
@@ -29,7 +30,7 @@ bool Chip8::load_rom(const std::string ROM_location)
 	}
 	else
 	{
-		window.setTitle("Chip-8 - " + ROM_location);
+		window.setTitle("Chip-8 - \"" + ROM_location + "\"");
 	}
 	return ROM.is_open();
 }
@@ -60,11 +61,15 @@ void Chip8::update()
 
 void Chip8::read()
 {
+	// Skip attempted to read opcodes.. they aren't there
+	if (!ROM.is_open())
+		return;
+
 	byte instruct_buff[2];
 	
 	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();
 
-	//std::cout << "Buffer: " << std::hex  << std::setfill('0') << std::setw(2) << (int)instruct_buff[0] << std::setfill('0') << std::setw(2) << (int)instruct_buff[1] << "\n";
+	debugger.print_bytes(instruct_buff[0], instruct_buff[1]);
 	
 	if (left_nibble(instruct_buff[0]) == 0)
 	{
@@ -79,55 +84,54 @@ void Chip8::read()
 				std::cout << "ATTEMPTED TO RETURN FROM UNKNOWN SUBROUTINE. Please fix.\n";
 				std::exit(-1);
 			}
-			ROM.seekg(stack.top());
+			ROM.seekg(stack.top(), std::ios::beg);
 			stack.pop();
-			// TODO: Implement subroutine calls 
 		}
 	}
 	else if (left_nibble(instruct_buff[0]) == 1)	// jump instruction
 	{
-		debug_print_registers();
-		// TODO: Test jump opcode
-		//std::cout << "JUMP CALLED\n";
 		short jmp = 0x0000;
-		jmp = (right_nibble(instruct_buff[0]) >> 4);
-		//std::cout << "Debug jmp: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
+		jmp += right_nibble(instruct_buff[0]);
 		jmp <<= 8;
-		//std::cout << "Debug jmp: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
 		jmp += instruct_buff[1];
-		//std::cout << "Debug jmp: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
-		ROM.seekg(jmp);
+		debugger.jump_msg(jmp);
+		ROM.seekg(jmp, std::ios::beg);
 	}
 	else if (left_nibble(instruct_buff[0]) == 2)	// call subroutine
 	{
-		stack.push((short)ROM.tellg());
 		short jmp = 0x0000;
-		jmp = (right_nibble(instruct_buff[0]) >> 4);
-		//std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
+		stack.push((short)ROM.tellg());
+		jmp += right_nibble(instruct_buff[0]);
 		jmp <<= 8;
-		//std::cout << "Debug sub: " << std::bitset<16>(jmp) << " " << std::bitset<16>(jmp).to_ulong() << "\n";
 		jmp += instruct_buff[1];
-		ROM.seekg(jmp);
+		debugger.sub_msg(jmp);
+		ROM.seekg(jmp, std::ios::beg);
 	}
 	else if (left_nibble(instruct_buff[0]) == 3)	// if VX == NN skip the next two
 	{
 		if (registers[right_nibble(instruct_buff[0])] == instruct_buff[1])
 		{
-			ROM.get(); ROM.get();
+			byte buff1, buff2;
+			buff1 = ROM.get(); buff2 = ROM.get();
+			debugger.print_skip(buff1, buff2);
 		}
 	}
 	else if (left_nibble(instruct_buff[0]) == 4)	// if VX != NN skip the next two
 	{
 		if (registers[right_nibble(instruct_buff[0])] != instruct_buff[1])
 		{
-			ROM.get(); ROM.get();
+			byte buff1, buff2;
+			buff1 = ROM.get(); buff2 = ROM.get();
+			debugger.print_skip(buff1, buff2);
 		}
 	}
 	else if (left_nibble(instruct_buff[0]) == 5)	// if VX == VY skip the next two
 	{
 		if (registers[right_nibble(instruct_buff[0])] == registers[left_nibble(instruct_buff[1])])
 		{
-			ROM.get(); ROM.get();
+			byte buff1, buff2;
+			buff1 = ROM.get(); buff2 = ROM.get();
+			debugger.print_skip(buff1, buff2);
 		}
 	}
 	else if (left_nibble(instruct_buff[0]) == 6)	// sets VX to NN
@@ -181,8 +185,18 @@ void Chip8::read()
 	{
 		if (right_nibble(instruct_buff[0]) != left_nibble(instruct_buff[1]))
 		{
-			ROM.get(); ROM.get();
+			byte buff1, buff2;
+			buff1 = ROM.get(); buff2 = ROM.get();
+			debugger.print_skip(buff1, buff2);
 		}
+	}
+	else if (left_nibble(instruct_buff[0]) == 10)	// hexadecimal A
+	{
+		short temp = 0x0000;
+		temp += right_nibble(instruct_buff[0]);
+		temp <<= 8;
+		temp += instruct_buff[1];
+		i = temp;
 	}
 
 }
