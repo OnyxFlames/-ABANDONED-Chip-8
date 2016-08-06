@@ -13,11 +13,20 @@ Chip8::Chip8()
 
 void Chip8::run()
 {
-		while (window.isOpen() && !ROM.eof())
+		while (!ROM.eof() && ROM.is_open())
 		{
 			read();		// won't if paused
 			input();
 			update();	// won't if paused
+			draw();
+		}
+		//update debug info one more time after ending rom
+		debuginfo_updated = false;
+		while (window.isOpen() && loaded_debug)
+		{
+			static int update_flag = 0;
+			input();
+			update();
 			draw();
 		}
 }
@@ -46,6 +55,8 @@ void Chip8::pause(bool _pause)
 }
 void Chip8::input()
 {
+	if (!window.isOpen())
+		ROM.seekg(std::ios::end);
 	//TODO: find a sweet spot for the vertical limit so it ends on the bottom of the window instead of slightly above bottom
 	const int text_spacing = 56, vertical_limit(-3810);
 	while (window.pollEvent(event))
@@ -234,14 +245,20 @@ void Chip8::read()
 {
 	// Skip attempt to read opcodes.. they aren't there
 	if (!ROM.is_open())
-		return;
+	{
+		if (loaded_debug)
+			ROM.seekg(std::ios::end);
+		else
+			return;
+	}
+	
 	if (pause_emulation)
 		return;
 	byte instruct_buff[2];
 	
 	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();
 
-	debugger.print_bytes(instruct_buff[0], instruct_buff[1]);
+	//debugger.print_bytes(instruct_buff[0], instruct_buff[1]);
 	
 	if (left_nibble(instruct_buff[0]) == 0)
 	{
@@ -268,7 +285,7 @@ void Chip8::read()
 		jmp += right_nibble(instruct_buff[0]);
 		jmp <<= 8;
 		jmp += instruct_buff[1];
-		debugger.jump_msg(jmp);
+		//debugger.jump_msg(jmp);
 		ROM.seekg(jmp, std::ios::beg);
 	}
 	else if (left_nibble(instruct_buff[0]) == 2)	// call subroutine
@@ -278,7 +295,7 @@ void Chip8::read()
 		jmp += right_nibble(instruct_buff[0]);
 		jmp <<= 8;
 		jmp += instruct_buff[1];
-		debugger.sub_msg(jmp);
+		//debugger.sub_msg(jmp);
 		ROM.seekg(jmp, std::ios::beg);
 	}
 	else if (left_nibble(instruct_buff[0]) == 3)	// if VX == NN skip the next two
@@ -287,7 +304,7 @@ void Chip8::read()
 		{
 			byte buff1, buff2;
 			buff1 = ROM.get(); buff2 = ROM.get();
-			debugger.print_skip(buff1, buff2);
+			//debugger.print_skip(buff1, buff2);
 		}
 	}
 	else if (left_nibble(instruct_buff[0]) == 4)	// if VX != NN skip the next two
@@ -296,7 +313,7 @@ void Chip8::read()
 		{
 			byte buff1, buff2;
 			buff1 = ROM.get(); buff2 = ROM.get();
-			debugger.print_skip(buff1, buff2);
+			//debugger.print_skip(buff1, buff2);
 		}
 	}
 	else if (left_nibble(instruct_buff[0]) == 5)	// if VX == VY skip the next two
@@ -305,7 +322,7 @@ void Chip8::read()
 		{
 			byte buff1, buff2;
 			buff1 = ROM.get(); buff2 = ROM.get();
-			debugger.print_skip(buff1, buff2);
+			//debugger.print_skip(buff1, buff2);
 		}
 	}
 	else if (left_nibble(instruct_buff[0]) == 6)	// sets VX to NN
@@ -361,7 +378,7 @@ void Chip8::read()
 		{
 			byte buff1, buff2;
 			buff1 = ROM.get(); buff2 = ROM.get();
-			debugger.print_skip(buff1, buff2);
+			//debugger.print_skip(buff1, buff2);
 		}
 	}
 	else if (left_nibble(instruct_buff[0]) == 10)	// hexadecimal A
@@ -457,13 +474,6 @@ void Chip8::load_debug_data()
 			}
 		}
 	}
-	debugger.set_write(false);
+	//debugger.set_write(false);
 	// ...
-}
-
-void Chip8::debug_print_registers()
-{
-	for (int i = 0; i < 16; i++)
-		std::cout << std::hex << (int)registers[i] << " ";
-	std::cout << "\n---\n";
 }

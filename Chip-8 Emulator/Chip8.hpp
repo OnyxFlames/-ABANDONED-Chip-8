@@ -13,7 +13,6 @@
 class Chip8
 {
 private:
-	// program counter is ROM.tellg()
 	// Debug code
 	bool loaded_debug = false;
 	sf::Font debug_font;
@@ -21,11 +20,11 @@ private:
 	std::vector<sf::Text> address_text;
 	std::vector<sf::Text> register_text;
 	std::vector<std::string> call_stack;
-	bool debug_flag = true;
+	bool debug_flag = false;
 	bool winsize_updated = false;
 	bool debuginfo_updated = false;
 	bool show_memory = true;	// if not memory, show the call stack.
-	Debugger debugger;
+	//Debugger debugger;
 	void load_debug_data();
 	// ...
 	std::string emulation_title = "Chip-8 - ";
@@ -33,9 +32,9 @@ private:
 	std::ifstream ROM;
 	sf::RenderWindow window;
 	Monitor monitor;
-
+	short pc = 0x0000;
 	short i = 0x0000;
-	byte registers[0x10];
+	byte registers[0x0010];
 	byte memory[0x1000];
 	std::stack<unsigned short> stack;
 
@@ -57,7 +56,6 @@ public:
 	void set_debug(bool _debug);
 	bool load_rom(const std::string ROM_location);
 	void pause(bool _pause);
-	void debug_print_registers();
 	~Chip8();
 };
 
