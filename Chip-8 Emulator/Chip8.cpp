@@ -3,11 +3,49 @@
 #include <bitset>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 
 Chip8::Chip8()
 {
+	// Debug code
+	debug_font.loadFromFile("../DEBUG_RESOURCES/debug_font.ttf");
+	debug_text.resize(0x1000);
+	address_text.resize(0x1000 / 16);
+	for (unsigned i = 0x00; i < 0x1000; i++)
+	{
+		static int interval(24), vertical_spacing(3), width_limit(60), start_pos(120),
+			x(-interval + start_pos), y(0);
+		x += interval;
+		if (x > (width_limit * pixel_size))
+		{
+			x = start_pos;
+			y += interval - (interval / vertical_spacing);
+			debug_text[i].setPosition(x, y);
+		}
+		else
+		{
+			debug_text[i].setPosition(x, y);
+		}
+		debug_text[i].setString("000");
+		debug_text[i].setFont(debug_font);
+		debug_text[i].setColor(sf::Color::White);
+		debug_text[i].setCharacterSize(12);
+		if (i < (0x1000 / 16))
+		{
+			std::stringstream ss;
+			ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
+			address_text[i].setString(ss.str() + ":");
+			address_text[i].setPosition(64.0f, (interval - (interval / vertical_spacing)) * i);
+			address_text[i].setFont(debug_font);
+			address_text[i].setColor(sf::Color::White);
+			address_text[i].setCharacterSize(12);
+			ss.clear();
+		}
+	}
 	debugger.set_write(false);
-	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), "Chip-8 - NO ROM");
+	// ...
+	emulation_title = emulation_title + "NO ROM";
+	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), emulation_title);
 	init_all(monitor, pixel_size, sf::Color(100, 100, 100));
 }
 
@@ -15,9 +53,9 @@ void Chip8::run()
 {
 		while (window.isOpen() && !ROM.eof())
 		{
-			read();
+			read();	// won't if paused
 			input();
-			update();
+			update();	// won't if paused
 			draw();
 		}
 }
@@ -26,21 +64,79 @@ bool Chip8::load_rom(const std::string ROM_location)
 	ROM.open(ROM_location);
 	if (!ROM.is_open())
 	{
-		window.setTitle("Chip-8 - Error loading ROM");
+		emulation_title = emulation_title + "Error loading ROM";
+		window.setTitle(emulation_title);
 	}
 	else
 	{
-		window.setTitle("Chip-8 - \"" + ROM_location + "\"");
+		emulation_title = emulation_title + "\"" + ROM_location + "\"";
+		window.setTitle(emulation_title);
 	}
 	return ROM.is_open();
 }
 void Chip8::input()
 {
+	//TODO: find a sweet spot for the vertical limit so it ends on the bottom of the window instead of slightly above bottom
+	const int text_spacing = 56, vertical_limit(-3810);
 	while (window.pollEvent(event))
 	{
 		// TODO: Make closing the emulator cleaner once more progress has been made.
 		if (event.type == sf::Event::Closed || sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 			window.close();
+		if (event.type == sf::Event::KeyPressed)
+		{
+			switch (event.key.code)
+			{
+			case sf::Keyboard::F1:
+				debug_flag = !debug_flag;
+				winsize_updated = false;
+				break;
+			case sf::Keyboard::Down:
+				if (debug_flag)
+				{
+					if (debug_text[0].getPosition().y > vertical_limit || address_text[0].getPosition().y > vertical_limit)
+					{
+						for (unsigned i = 0x00; i < 0x1000; i++)
+						{
+							if (i < 0x1000 / 16)
+								address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y - text_spacing);
+
+							debug_text[i].setPosition(debug_text[i].getPosition().x, debug_text[i].getPosition().y - text_spacing);
+						}
+					}
+					else
+						;// don't move it
+				}
+				break;
+			case sf::Keyboard::Up:
+				if (debug_flag)
+				{
+					if (debug_text[0].getPosition().y < 0 || address_text[0].getPosition().y < 0)
+					{
+						for (unsigned i = 0x00; i < 0x1000; i++)
+						{
+							if (i < 0x1000 / 16)
+								address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y + text_spacing);
+
+							debug_text[i].setPosition(debug_text[i].getPosition().x, debug_text[i].getPosition().y + text_spacing);
+						}
+					}
+					else
+						;// don't move it
+				}
+				break;
+			case sf::Keyboard::Tilde:
+				pause_emulation = !pause_emulation;
+				if (pause_emulation)
+					window.setTitle(emulation_title + " (PAUSED)");
+				else
+					window.setTitle(emulation_title);
+				break;
+			default:
+				// not a supported key code.
+				break;
+			}
+		}
 		/*
 			TODO: Put code that loads keyboard input into the registers
 		*/
@@ -48,14 +144,63 @@ void Chip8::input()
 }
 void Chip8::draw()
 {
-	window.clear();
-	for (auto _ : monitor)
-		for (auto __ : _)
-			window.draw(__);
-	window.display();
+	if (debug_flag)
+	{
+		if (debuginfo_updated)
+		{
+			window.clear();
+			for (unsigned i = 0; i < 0x1000; i++)
+			{
+				if(i < 0x1000 / 16)
+					window.draw(address_text[i]);
+				window.draw(debug_text[i]);
+			}
+			window.display();
+			debuginfo_updated = true;
+		}
+	}
+	else
+	{
+		window.clear();
+		for (auto _ : monitor)
+			for (auto __ : _)
+				window.draw(__);
+		window.display();
+	}
 }
 void Chip8::update()
 {
+	if (debug_flag)
+	{
+		if (!winsize_updated)
+		{
+			window.setSize(sf::Vector2u(64 * pixel_size * 2, 32 * pixel_size * 2));
+			winsize_updated = true;
+		}
+		if (!debuginfo_updated)
+		{
+			for (unsigned i = 0x00; i < 0x1000; i++)
+			{
+				std::stringstream ss;
+				ss << std::hex << std::setfill('0') << std::setw(3) << std::to_string(memory[i]);
+				debug_text[i].setString(ss.str());
+				ss.clear();
+			}
+			debuginfo_updated = true;
+		}
+	}
+	else
+	{
+		if (!winsize_updated)
+		{
+			window.setSize(sf::Vector2u(64 * pixel_size, 32 * pixel_size));
+			winsize_updated = true;
+		}
+	}
+	// always update debug info, but nothing else when paused.
+	if (pause_emulation)
+			return;
+
 	// TODO: include check for sound and delay clocks here
 }
 
@@ -64,7 +209,8 @@ void Chip8::read()
 	// Skip attempted to read opcodes.. they aren't there
 	if (!ROM.is_open())
 		return;
-
+	if (pause_emulation)
+		return;
 	byte instruct_buff[2];
 	
 	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();

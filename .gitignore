@@ -251,5 +251,6 @@ paket-files/
 .idea/
 *.sln.iml
 
-# ROMS
+# ROMS and debug stuff
 ROMS/
+DEBUG_RESOURCES/
