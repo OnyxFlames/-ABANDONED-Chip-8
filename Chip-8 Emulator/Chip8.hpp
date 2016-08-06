@@ -20,7 +20,8 @@ private:
 	std::vector<sf::Text> debug_text;
 	std::vector<sf::Text> address_text;
 	std::vector<sf::Text> register_text;
-	bool debug_flag = false;
+	std::vector<std::string> call_stack;
+	bool debug_flag = true;
 	bool winsize_updated = false;
 	bool debuginfo_updated = false;
 	bool show_memory = true;	// if not memory, show the call stack.

@@ -1,7 +1,11 @@
 # Goal
 The goal for this project is to have a Chip-8 emulator capable of fully emulating Chip-8 games and programs.
 # Usage
-```Chip8 <filename>```
+```Chip8 <ROM>```
+
+Or
+
+```Chip8 <args../ROM>```
 
 # Debugging
 The emulator comes with a few tools used for debugging development.

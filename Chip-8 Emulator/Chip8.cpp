@@ -103,6 +103,7 @@ void Chip8::input()
 				{
 					// switch between displaying memory or callstack
 					show_memory = !show_memory;
+					debuginfo_updated = false;
 				}
 				break;
 			case sf::Keyboard::Tilde:
@@ -141,9 +142,14 @@ void Chip8::draw()
 					window.draw(debug_text[i]);
 				}
 			}
-			else
+			else if (!show_memory)
 			{
-				// update callstack data
+				// to lessen the load on the Chip8 class, we will reuse the debug_text vector
+				for (unsigned i = 0; i < 0x1000; i++)
+				{
+					if (i < 0x1000 / 16)
+						window.draw(address_text[i]);
+				}
 			}
 			window.display();
 			debuginfo_updated = true;
@@ -169,18 +175,42 @@ void Chip8::update()
 		}
 		if (!debuginfo_updated)
 		{
-			for (unsigned i = 0x00; i < 0x1000; i++)
+			if (show_memory)
 			{
-				if (i < 16)
+				// update address text quick
+				for (unsigned i = 0x00; i < 0x1000; i++)
 				{
+					if (i < 16)
+					{
+						std::stringstream ss;
+						ss << std::hex << "V" << i << ": " << std::setfill('0') << std::setw(3) << registers[i];
+						register_text[i].setString(ss.str());
+					}
+					if (i < (0x1000 / 16))
+					{
+						std::stringstream ss;
+						ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
+						address_text[i].setString(ss.str() + ":");
+						ss.clear();
+					}
 					std::stringstream ss;
-					ss << std::hex << "V" << i << ": " << std::setfill('0') << std::setw(3) << registers[i];
-					register_text[i].setString(ss.str());
+					ss << std::hex << std::setfill('0') << std::setw(3) << std::to_string(memory[i]);
+					debug_text[i].setString(ss.str());
+					ss.clear();
 				}
-				std::stringstream ss;
-				ss << std::hex << std::setfill('0') << std::setw(3) << std::to_string(memory[i]);
-				debug_text[i].setString(ss.str());
-				ss.clear();
+			}
+			else if (!show_memory)
+			{
+				for (unsigned i = 0x00; i < 0x1000; i++)
+				{
+					if (i < (0x1000 / 16))
+					{
+						if(call_stack.size() > i)
+							address_text[i].setString(call_stack[i]);
+						else
+							address_text[i].setString("");
+					}
+				}
 			}
 			debuginfo_updated = true;
 		}
@@ -217,10 +247,12 @@ void Chip8::read()
 	{
 		if (instruct_buff[1] == 0xE0)	// opcode is 0x00E0
 		{
+			call_stack.push_back("0x00E0 - Clear Screen");
 			op_clear_screen();
 		}
 		else if (instruct_buff[1] == 0xEE)	// return from subroutine
 		{
+			call_stack.push_back("0x00EE - Return from Subroutine");
 			if (stack.empty())
 			{
 				std::cout << "ATTEMPTED TO RETURN FROM UNKNOWN SUBROUTINE. Please fix.\n";
@@ -363,6 +395,7 @@ void Chip8::load_debug_data()
 	// TODO: Add code for call stack and stack data (as a debug toggle)
 	sf::Color debug_text_color = sf::Color::White;
 	// Debug code
+	call_stack.resize(0x1000 / 16);
 	debug_font.loadFromFile("../DEBUG_RESOURCES/debug_font.ttf");
 	debug_text.resize(0x1000);
 	address_text.resize(0x1000 / 16);
