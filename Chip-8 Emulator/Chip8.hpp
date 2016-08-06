@@ -14,13 +14,16 @@ class Chip8
 private:
 	// program counter is ROM.tellg()
 	// Debug code
+	bool loaded_debug = false;
 	sf::Font debug_font;
 	std::vector<sf::Text> debug_text;
 	std::vector<sf::Text> address_text;
+	std::vector<sf::Text> register_text;
 	bool debug_flag = false;
 	bool winsize_updated = false;
 	bool debuginfo_updated = false;
 	Debugger debugger;
+	void load_debug_data();
 	// ...
 	std::string emulation_title = "Chip-8 - ";
 	bool pause_emulation = false;
@@ -48,7 +51,9 @@ private:
 public:
 	Chip8();
 	void run();
+	void set_debug(bool _debug);
 	bool load_rom(const std::string ROM_location);
+	void pause(bool _pause);
 	void debug_print_registers();
 	~Chip8();
 };

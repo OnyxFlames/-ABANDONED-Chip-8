@@ -7,45 +7,7 @@
 
 Chip8::Chip8()
 {
-	// Debug code
-	debug_font.loadFromFile("../DEBUG_RESOURCES/debug_font.ttf");
-	debug_text.resize(0x1000);
-	address_text.resize(0x1000 / 16);
-	for (unsigned i = 0x00; i < 0x1000; i++)
-	{
-		static int interval(24), vertical_spacing(3), width_limit(60), start_pos(120),
-			x(-interval + start_pos), y(0);
-		x += interval;
-		if (x > (width_limit * pixel_size))
-		{
-			x = start_pos;
-			y += interval - (interval / vertical_spacing);
-			debug_text[i].setPosition(x, y);
-		}
-		else
-		{
-			debug_text[i].setPosition(x, y);
-		}
-		debug_text[i].setString("000");
-		debug_text[i].setFont(debug_font);
-		debug_text[i].setColor(sf::Color::White);
-		debug_text[i].setCharacterSize(12);
-		if (i < (0x1000 / 16))
-		{
-			std::stringstream ss;
-			ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
-			address_text[i].setString(ss.str() + ":");
-			address_text[i].setPosition(64.0f, (interval - (interval / vertical_spacing)) * i);
-			address_text[i].setFont(debug_font);
-			address_text[i].setColor(sf::Color::White);
-			address_text[i].setCharacterSize(12);
-			ss.clear();
-		}
-	}
-	debugger.set_write(false);
-	// ...
-	emulation_title = emulation_title + "NO ROM";
-	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), emulation_title);
+	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), emulation_title + "NO ROM");
 	init_all(monitor, pixel_size, sf::Color(100, 100, 100));
 }
 
@@ -74,6 +36,14 @@ bool Chip8::load_rom(const std::string ROM_location)
 	}
 	return ROM.is_open();
 }
+void Chip8::pause(bool _pause)
+{
+	pause_emulation = _pause;
+	if (pause_emulation)
+		window.setTitle(emulation_title + "(PAUSED)");
+	else
+		window.setTitle(emulation_title);
+}
 void Chip8::input()
 {
 	//TODO: find a sweet spot for the vertical limit so it ends on the bottom of the window instead of slightly above bottom
@@ -88,8 +58,11 @@ void Chip8::input()
 			switch (event.key.code)
 			{
 			case sf::Keyboard::F1:
-				debug_flag = !debug_flag;
-				winsize_updated = false;
+				if (loaded_debug)
+				{
+					debug_flag = !debug_flag;
+					winsize_updated = false;
+				}
 				break;
 			case sf::Keyboard::Down:
 				if (debug_flag)
@@ -128,7 +101,7 @@ void Chip8::input()
 			case sf::Keyboard::Tilde:
 				pause_emulation = !pause_emulation;
 				if (pause_emulation)
-					window.setTitle(emulation_title + " (PAUSED)");
+					window.setTitle(emulation_title + "(PAUSED)");
 				else
 					window.setTitle(emulation_title);
 				break;
@@ -151,6 +124,8 @@ void Chip8::draw()
 			window.clear();
 			for (unsigned i = 0; i < 0x1000; i++)
 			{
+				if (i < 16)
+					window.draw(register_text[i]);
 				if(i < 0x1000 / 16)
 					window.draw(address_text[i]);
 				window.draw(debug_text[i]);
@@ -181,6 +156,12 @@ void Chip8::update()
 		{
 			for (unsigned i = 0x00; i < 0x1000; i++)
 			{
+				if (i < 16)
+				{
+					std::stringstream ss;
+					ss << std::hex << "V" << i << ": " << std::setfill('0') << std::setw(3) << registers[i];
+					register_text[i].setString(ss.str());
+				}
 				std::stringstream ss;
 				ss << std::hex << std::setfill('0') << std::setw(3) << std::to_string(memory[i]);
 				debug_text[i].setString(ss.str());
@@ -206,7 +187,7 @@ void Chip8::update()
 
 void Chip8::read()
 {
-	// Skip attempted to read opcodes.. they aren't there
+	// Skip attempt to read opcodes.. they aren't there
 	if (!ROM.is_open())
 		return;
 	if (pause_emulation)
@@ -353,6 +334,83 @@ void Chip8::op_clear_screen()
 }
 Chip8::~Chip8()
 {
+}
+
+void Chip8::set_debug(bool _debug)
+{
+	loaded_debug = _debug;
+	if (loaded_debug)
+		load_debug_data();
+}
+
+void Chip8::load_debug_data()
+{
+	// TODO: Add code for call stack and stack data (as a debug toggle)
+	sf::Color debug_text_color = sf::Color::White;
+	// Debug code
+	debug_font.loadFromFile("../DEBUG_RESOURCES/debug_font.ttf");
+	debug_text.resize(0x1000);
+	address_text.resize(0x1000 / 16);
+	register_text.resize(16);
+	for (unsigned i = 0x00; i < 0x1000; i++)
+	{
+		const float interval(24), vertical_spacing(3), width_limit(60), start_pos(120);
+		static float x(-interval + start_pos), y(0);
+		x += interval;
+		if (x > (width_limit * pixel_size))
+		{
+			x = start_pos;
+			y += interval - (interval / vertical_spacing);
+			debug_text[i].setPosition(x, y);
+		}
+		else
+		{
+			debug_text[i].setPosition(x, y);
+		}
+		debug_text[i].setString("000");
+		debug_text[i].setFont(debug_font);
+		debug_text[i].setColor(debug_text_color);
+		debug_text[i].setCharacterSize(12);
+		if (i < (0x1000 / 16))
+		{
+			std::stringstream ss;
+			ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
+			address_text[i].setString(ss.str() + ":");
+			address_text[i].setPosition(64.0f, (interval - (interval / vertical_spacing)) * i);
+			address_text[i].setFont(debug_font);
+			address_text[i].setColor(debug_text_color);
+			address_text[i].setCharacterSize(12);
+			ss.clear();
+		}
+		if (i < 16)
+		{
+			register_text[i].setFont(debug_font);
+			register_text[i].setColor(debug_text_color);
+			register_text[i].setCharacterSize(12);
+			// Set register names and placement
+			switch (i)
+			{
+			case 0: register_text[i].setString("V0: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 1: register_text[i].setString("V1: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 2: register_text[i].setString("V2: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 3: register_text[i].setString("V3: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 4: register_text[i].setString("V4: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 5: register_text[i].setString("V5: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 6: register_text[i].setString("V6: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 7: register_text[i].setString("V7: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 8: register_text[i].setString("V8: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 9: register_text[i].setString("V9: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 10: register_text[i].setString("VA: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 11: register_text[i].setString("VB: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 12: register_text[i].setString("VC: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 13: register_text[i].setString("VD: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 14: register_text[i].setString("VE: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 15: register_text[i].setString("VF: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			}
+		}
+	}
+	debugger.set_write(false);
+	// ...
 }
 
 void Chip8::debug_print_registers()
