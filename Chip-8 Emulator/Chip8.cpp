@@ -15,7 +15,7 @@ void Chip8::run()
 {
 		while (window.isOpen() && !ROM.eof())
 		{
-			read();	// won't if paused
+			read();		// won't if paused
 			input();
 			update();	// won't if paused
 			draw();
@@ -98,6 +98,13 @@ void Chip8::input()
 						;// don't move it
 				}
 				break;
+			case sf::Keyboard::Tab:
+				if (debug_flag)
+				{
+					// switch between displaying memory or callstack
+					show_memory = !show_memory;
+				}
+				break;
 			case sf::Keyboard::Tilde:
 				pause_emulation = !pause_emulation;
 				if (pause_emulation)
@@ -122,13 +129,21 @@ void Chip8::draw()
 		if (debuginfo_updated)
 		{
 			window.clear();
-			for (unsigned i = 0; i < 0x1000; i++)
+			if (show_memory)
 			{
-				if (i < 16)
-					window.draw(register_text[i]);
-				if(i < 0x1000 / 16)
-					window.draw(address_text[i]);
-				window.draw(debug_text[i]);
+
+				for (unsigned i = 0; i < 0x1000; i++)
+				{
+					if (i < 16)
+						window.draw(register_text[i]);
+					if (i < 0x1000 / 16)
+						window.draw(address_text[i]);
+					window.draw(debug_text[i]);
+				}
+			}
+			else
+			{
+				// update callstack data
 			}
 			window.display();
 			debuginfo_updated = true;
@@ -390,22 +405,22 @@ void Chip8::load_debug_data()
 			// Set register names and placement
 			switch (i)
 			{
-			case 0: register_text[i].setString("V0: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 1: register_text[i].setString("V1: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 2: register_text[i].setString("V2: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 3: register_text[i].setString("V3: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 4: register_text[i].setString("V4: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 5: register_text[i].setString("V5: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 6: register_text[i].setString("V6: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 7: register_text[i].setString("V7: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 8: register_text[i].setString("V8: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 9: register_text[i].setString("V9: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 10: register_text[i].setString("VA: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 11: register_text[i].setString("VB: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 12: register_text[i].setString("VC: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 13: register_text[i].setString("VD: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 14: register_text[i].setString("VE: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 15: register_text[i].setString("VF: "); register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 0: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 1: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 2: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 3: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 4: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 5: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 6: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 7: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 8: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 9: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 10: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 11: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 12: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 13: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 14: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
+			case 15: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
 			}
 		}
 	}

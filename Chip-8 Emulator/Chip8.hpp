@@ -9,6 +9,7 @@
 #include "byte.hpp"
 #include "Display.hpp"
 #include "Debugger.hpp"
+
 class Chip8
 {
 private:
@@ -22,6 +23,7 @@ private:
 	bool debug_flag = false;
 	bool winsize_updated = false;
 	bool debuginfo_updated = false;
+	bool show_memory = true;	// if not memory, show the call stack.
 	Debugger debugger;
 	void load_debug_data();
 	// ...
