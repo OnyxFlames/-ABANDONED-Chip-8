@@ -4,30 +4,35 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <random>
+
 
 Chip8::Chip8()
 {
 	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), emulation_title + "NO ROM");
-	init_all(monitor, pixel_size, sf::Color(100, 100, 100));
+	//init_all(monitor, pixel_size, sf::Color(100, 100, 100));
 }
 
 void Chip8::run()
 {
+		register unsigned frame_counter = 0;
 		while (!ROM.eof() && ROM.is_open())
 		{
 			read();		// won't if paused
 			input();
 			update();	// won't if paused
 			draw();
+			update_frame_counter(frame_counter);
 		}
 		//update debug info one more time after ending rom
 		debuginfo_updated = false;
+		window.setTitle("[DEBUG]" + emulation_title);
 		while (window.isOpen() && loaded_debug)
 		{
-			static int update_flag = 0;
 			input();
 			update();
 			draw();
+			update_frame_counter(frame_counter);
 		}
 }
 bool Chip8::load_rom(const std::string ROM_location)
@@ -80,7 +85,7 @@ void Chip8::input()
 				{
 					if (debug_text[0].getPosition().y > vertical_limit || address_text[0].getPosition().y > vertical_limit)
 					{
-						for (unsigned i = 0x00; i < 0x1000; i++)
+						for (unsigned i = mem_count_start; i < 0x1000; i++)
 						{
 							if (i < 0x1000 / 16)
 								address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y - text_spacing);
@@ -97,7 +102,7 @@ void Chip8::input()
 				{
 					if (debug_text[0].getPosition().y < 0 || address_text[0].getPosition().y < 0)
 					{
-						for (unsigned i = 0x00; i < 0x1000; i++)
+						for (unsigned i = mem_count_start; i < 0x1000; i++)
 						{
 							if (i < 0x1000 / 16)
 								address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y + text_spacing);
@@ -143,8 +148,7 @@ void Chip8::draw()
 			window.clear();
 			if (show_memory)
 			{
-
-				for (unsigned i = 0; i < 0x1000; i++)
+				for (unsigned i = mem_count_start; i < 0x1000; i++)
 				{
 					if (i < 16)
 						window.draw(register_text[i]);
@@ -156,9 +160,9 @@ void Chip8::draw()
 			else if (!show_memory)
 			{
 				// to lessen the load on the Chip8 class, we will reuse the debug_text vector
-				for (unsigned i = 0; i < 0x1000; i++)
+				for (unsigned i = mem_count_start; i < 0x1000; i++)
 				{
-					if (i < 0x1000 / 16)
+					if (i < (0x1000 / 16))
 						window.draw(address_text[i]);
 				}
 			}
@@ -168,10 +172,10 @@ void Chip8::draw()
 	}
 	else
 	{
-		window.clear();
-		for (auto _ : monitor)
-			for (auto __ : _)
-				window.draw(__);
+		window.clear(sf::Color::White);
+		//for (auto _ : monitor)
+			//for (auto __ : _)
+				//window.draw(__);
 		window.display();
 	}
 }
@@ -188,43 +192,46 @@ void Chip8::update()
 		{
 			if (show_memory)
 			{
-				// update address text quick
-				for (unsigned i = 0x00; i < 0x1000; i++)
-				{
-					if (i < 16)
+					// update address text quick
+					for (unsigned i = mem_count_start; i < 0x1000; i++)
 					{
+						if (i < 16)
+						{
+							std::stringstream ss;
+							ss << std::hex << "V" << i << ": " << std::setfill('0') << std::setw(3) << registers[i];
+							register_text[i].setString(ss.str());
+						}
+						if (i < (0x1000 / 16))
+						{
+							std::stringstream ss;
+							ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
+							address_text[i].setString(ss.str() + ":");
+							ss.clear();
+						}
 						std::stringstream ss;
-						ss << std::hex << "V" << i << ": " << std::setfill('0') << std::setw(3) << registers[i];
-						register_text[i].setString(ss.str());
-					}
-					if (i < (0x1000 / 16))
-					{
-						std::stringstream ss;
-						ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
-						address_text[i].setString(ss.str() + ":");
+						ss << std::hex << std::setfill('0') << std::setw(3) << std::to_string(memory[i]);
+						debug_text[i].setString(ss.str());
 						ss.clear();
 					}
-					std::stringstream ss;
-					ss << std::hex << std::setfill('0') << std::setw(3) << std::to_string(memory[i]);
-					debug_text[i].setString(ss.str());
-					ss.clear();
 				}
-			}
-			else if (!show_memory)
-			{
-				for (unsigned i = 0x00; i < 0x1000; i++)
+				else if (!show_memory)
 				{
-					if (i < (0x1000 / 16))
+
+					for (unsigned i = mem_count_start; i < 0x1000; i++)
 					{
-						if(call_stack.size() > i)
-							address_text[i].setString(call_stack[i]);
-						else
-							address_text[i].setString("");
+						if (i < (0x1000 / 16))
+						{
+							if (call_stack.size() > i)
+							{
+								address_text[i].setString(call_stack[i]);
+							}
+							else
+								address_text[i].setString("");
+						}
 					}
 				}
-			}
-			debuginfo_updated = true;
 		}
+			debuginfo_updated = true;
 	}
 	else
 	{
@@ -258,7 +265,7 @@ void Chip8::read()
 	
 	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();
 
-	//debugger.print_bytes(instruct_buff[0], instruct_buff[1]);
+	debugger.print_bytes(instruct_buff[0], instruct_buff[1]);
 	
 	if (left_nibble(instruct_buff[0]) == 0)
 	{
@@ -281,6 +288,7 @@ void Chip8::read()
 	}
 	else if (left_nibble(instruct_buff[0]) == 1)	// jump instruction
 	{
+		call_stack.push_back("0x1NNN - Jump to NNN");
 		short jmp = 0x0000;
 		jmp += right_nibble(instruct_buff[0]);
 		jmp <<= 8;
@@ -290,6 +298,7 @@ void Chip8::read()
 	}
 	else if (left_nibble(instruct_buff[0]) == 2)	// call subroutine
 	{
+		call_stack.push_back("0x2NNN - Call subroutine at NNN");
 		short jmp = 0x0000;
 		stack.push((short)ROM.tellg());
 		jmp += right_nibble(instruct_buff[0]);
@@ -300,6 +309,7 @@ void Chip8::read()
 	}
 	else if (left_nibble(instruct_buff[0]) == 3)	// if VX == NN skip the next two
 	{
+		call_stack.push_back("0x3XNN - if VX == NN skip next instruction.");
 		if (registers[right_nibble(instruct_buff[0])] == instruct_buff[1])
 		{
 			byte buff1, buff2;
@@ -309,6 +319,7 @@ void Chip8::read()
 	}
 	else if (left_nibble(instruct_buff[0]) == 4)	// if VX != NN skip the next two
 	{
+		call_stack.push_back("0x4XNN - if VX != NN skip next instruction.");
 		if (registers[right_nibble(instruct_buff[0])] != instruct_buff[1])
 		{
 			byte buff1, buff2;
@@ -318,6 +329,7 @@ void Chip8::read()
 	}
 	else if (left_nibble(instruct_buff[0]) == 5)	// if VX == VY skip the next two
 	{
+		call_stack.push_back("0x5XY0 - if VX == VY skip next instruction.");
 		if (registers[right_nibble(instruct_buff[0])] == registers[left_nibble(instruct_buff[1])])
 		{
 			byte buff1, buff2;
@@ -327,53 +339,66 @@ void Chip8::read()
 	}
 	else if (left_nibble(instruct_buff[0]) == 6)	// sets VX to NN
 	{
+		call_stack.push_back("0x6XNN - set VX to NN");
 		registers[right_nibble(instruct_buff[0])] = instruct_buff[1];
 	}
 	else if (left_nibble(instruct_buff[0]) == 7)	// adds NN to VX
 	{
+		call_stack.push_back("0x7XNN - adds VX to NN");
 		registers[right_nibble(instruct_buff[0])] += instruct_buff[1];
 	}
 	else if (left_nibble(instruct_buff[0]) == 8)
 	{
+		
 		if (right_nibble(instruct_buff[1]) == 0)	// set VX to the value of VY
 		{
+			call_stack.push_back("0x8XY0 - set VX to the value of VY");
 			registers[right_nibble(instruct_buff[0])] = registers[left_nibble(instruct_buff[1])];
 		}
 		else if (right_nibble(instruct_buff[1]) == 1)
 		{
+			call_stack.push_back("0x8XY1 - set VX to (VX | VY)");
 			registers[right_nibble(instruct_buff[0])] |= registers[left_nibble(instruct_buff[1])];
 		}
 		else if (right_nibble(instruct_buff[1]) == 2)
 		{
+			call_stack.push_back("0x8XY2 - set VX to (VX & VY)");
 			registers[right_nibble(instruct_buff[0])] &= registers[left_nibble(instruct_buff[1])];
 		}
 		else if (right_nibble(instruct_buff[1]) == 3)
 		{
+			call_stack.push_back("0x8XY3 - set VX to (VX ^ VY)");
 			registers[right_nibble(instruct_buff[0])] ^= registers[left_nibble(instruct_buff[1])];
 		}
 		else if (right_nibble(instruct_buff[1]) == 4)
 		{
+			call_stack.push_back("0x8XY4 - adds VY to VX (carry: VF = 1 || no carry: VF = 0)[UNIMPLEMENTED]");
 			// TODO: add with carry opcode
 		}
 		else if (right_nibble(instruct_buff[1]) == 5)
 		{
+			call_stack.push_back("0x8XY5 - subtracts VY from VX (borrow: VF = 0 || no borrow: VF = 1)[UNIMPLEMENTED]");
 			// TODO: subtract with borrow opcode
 		}
 		else if (right_nibble(instruct_buff[1]) == 6)
 		{
+			call_stack.push_back("0x8XY6 - shifts VX right by one. VF = value of LSB of VX before shift[UNIMPLEMENTED]");
 			// TODO: shift VX right by one -- VF equals last bit of VX before shift
 		}
 		else if (right_nibble(instruct_buff[1]) == 7)
 		{
+			call_stack.push_back("0x8XY7 - VX = (VY - VX)(borrow: VF = 0 || no borrow: VF = 1)[UNIMPLEMENTED]");
 			// TODO: set VX to VY - VX -- VF is set to 0 when there is a borrow 1 when there isn't
 		}
 		else if (right_nibble(instruct_buff[1]) == 14)
 		{
+			call_stack.push_back("0x8XYE - shifts VX left by one VF = MSB of VX before shift[UNIMPLEMENTED]");
 			// TODO: shifts VX left by one -- VF is set to the value of the first bit of VX before shift
 		}
 	}
 	else if (left_nibble(instruct_buff[0]) == 9)
 	{
+		call_stack.push_back("0x9XY0 - if VX != VY skip next instruction");
 		if (right_nibble(instruct_buff[0]) != left_nibble(instruct_buff[1]))
 		{
 			byte buff1, buff2;
@@ -381,20 +406,39 @@ void Chip8::read()
 			//debugger.print_skip(buff1, buff2);
 		}
 	}
-	else if (left_nibble(instruct_buff[0]) == 10)	// hexadecimal A
+	else if (left_nibble(instruct_buff[0]) == 10)	// hexadecimal A - ANNN: set i to NNN
 	{
+		call_stack.push_back("0xANNN - i = NNN");
 		short temp = 0x0000;
 		temp += right_nibble(instruct_buff[0]);
 		temp <<= 8;
 		temp += instruct_buff[1];
 		i = temp;
 	}
-
+	else if (left_nibble(instruct_buff[0]) == 11)	// hexadecimal B - BNNN: jump to NNN + V0
+	{
+		call_stack.push_back("0xBNNN - jump to NNN + V0");
+		short jmp = 0x0000;
+		jmp += right_nibble(instruct_buff[0]);
+		jmp <<= 8;
+		jmp += instruct_buff[1];
+		ROM.seekg(jmp + registers[0x00], std::ios::beg);
+	}
+	else if (left_nibble(instruct_buff[0]) == 12)	// hexadecimal C - sets VX to the result of (rand() & NN)
+	{
+		call_stack.push_back("0xCXNN - VX = (rand() & NN)");
+		registers[right_nibble(instruct_buff[0])] = (rand() % 255) & instruct_buff[1];
+	}
+	else if (left_nibble(instruct_buff[0]) == 13)	// hexadecimal D - draw sprite at VX VY with a height of N and width of 8
+	{
+		call_stack.push_back("0xDXYN - draw sprite at VX VY, N high");
+		registers[right_nibble(instruct_buff[0])] = (rand() % 255) & instruct_buff[1];
+	}
 }
 
 void Chip8::op_clear_screen()
 {
-	color_pixels(monitor, sf::Color::Black);
+	//color_pixels(monitor, sf::Color::Black);
 }
 Chip8::~Chip8()
 {
@@ -412,12 +456,12 @@ void Chip8::load_debug_data()
 	// TODO: Add code for call stack and stack data (as a debug toggle)
 	sf::Color debug_text_color = sf::Color::White;
 	// Debug code
-	call_stack.resize(0x1000 / 16);
+	//call_stack.resize(0x1000 / 16);
 	debug_font.loadFromFile("../DEBUG_RESOURCES/debug_font.ttf");
 	debug_text.resize(0x1000);
 	address_text.resize(0x1000 / 16);
 	register_text.resize(16);
-	for (unsigned i = 0x00; i < 0x1000; i++)
+	for (unsigned i = mem_count_start; i < 0x1000; i++)
 	{
 		const float interval(24), vertical_spacing(3), width_limit(60), start_pos(120);
 		static float x(-interval + start_pos), y(0);
@@ -474,6 +518,23 @@ void Chip8::load_debug_data()
 			}
 		}
 	}
-	//debugger.set_write(false);
+	debugger.set_write(true);
 	// ...
+}
+
+void Chip8::update_frame_counter(unsigned &frame_counter)
+{
+	if (loaded_debug)
+	{
+		if (perf_clock.getElapsedTime() >= sf::milliseconds(1000))
+		{
+			std::cout << "Average frames: " << frame_counter << "\n";
+			frame_counter = 0;
+			perf_clock.restart();
+		}
+		else
+			frame_counter++;
+	}
+	else
+		;
 }

@@ -254,3 +254,4 @@ paket-files/
 # ROMS and debug stuff
 ROMS/
 DEBUG_RESOURCES/
+Chip-8 Emulator/Debug/test.bat

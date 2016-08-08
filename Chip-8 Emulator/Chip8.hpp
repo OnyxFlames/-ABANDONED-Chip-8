@@ -10,6 +10,8 @@
 #include "Display.hpp"
 #include "Debugger.hpp"
 
+const unsigned mem_count_start = 0x00;
+
 class Chip8
 {
 private:
@@ -24,21 +26,23 @@ private:
 	bool winsize_updated = false;
 	bool debuginfo_updated = false;
 	bool show_memory = true;	// if not memory, show the call stack.
-	//Debugger debugger;
+	Debugger debugger;
 	void load_debug_data();
+	void update_frame_counter(unsigned &frame_counter);
 	// ...
 	std::string emulation_title = "Chip-8 - ";
 	bool pause_emulation = false;
 	std::ifstream ROM;
 	sf::RenderWindow window;
-	Monitor monitor;
+	//Monitor monitor;
+	bool input_wait = false;
 	short pc = 0x0000;
 	short i = 0x0000;
 	byte registers[0x0010];
 	byte memory[0x1000];
 	std::stack<unsigned short> stack;
 
-	sf::Clock delay, sound;
+	sf::Clock delay, sound, perf_clock;
 	sf::Event event;
 
 	// core functions
