@@ -10,7 +10,8 @@ Or
 # Debugging
 The emulator comes with a few tools used for debugging development.
 
-To turn on the debug display press tilde ('~') and press it again to toggle it off.
+To turn on the debug display press F1 and press it again to toggle it off; you can alternate between memory and the callstack by pressing TAB while in debug mode.
+Up and down arrows to scroll through memory block.
 
 The debugging features need a system font to display the data, which is not supplied on the repo (copyright concerns).
 
