@@ -180,7 +180,7 @@ void Chip8::draw()
 		//for (auto _ : monitor)
 			//for (auto __ : _)
 				//window.draw(__);
-		// You only wanna display the FPS if it's set to read(which means debug data was loaded)
+		// You only wanna display the FPS if it's set to red(which means debug data was loaded)
 		if (fps_text.getColor() == sf::Color::Red)
 			window.draw(fps_text);
 		window.display();
@@ -216,9 +216,9 @@ void Chip8::update()
 							ss.clear();
 						}
 						std::stringstream ss;
-						ss << std::hex << std::setfill('0') << std::setw(3) << (int)memory[i];
+						ss << std::hex << std::setfill('0') << std::setw(2) << (int)memory[i];
 						debug_text[i].setString(ss.str());
-						if (strcmp(debug_text[i].getString().toAnsiString().c_str(), "000") != 0)
+						if (strcmp(debug_text[i].getString().toAnsiString().c_str(), "00") != 0)
 							debug_text[i].setColor(sf::Color::Red);
 						else
 							debug_text[i].setColor(sf::Color::White);
