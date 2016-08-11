@@ -47,7 +47,8 @@ private:
 	byte memory[0x1000];
 	std::stack<unsigned short> stack;
 
-	sf::Clock delay, sound, perf_clock;
+	sf::Clock delay_clock, sound_clock, perf_clock;
+	sf::Time delay_time, sound_time;
 	sf::Event event;
 
 	// core functions

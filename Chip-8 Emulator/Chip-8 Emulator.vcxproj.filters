@@ -30,9 +30,6 @@
     <ClCompile Include="Chip8_debug.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="chip8_read_backup.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Chip8.hpp">

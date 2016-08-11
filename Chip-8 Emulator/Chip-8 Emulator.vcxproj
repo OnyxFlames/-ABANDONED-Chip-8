@@ -83,7 +83,6 @@
     <ClCompile Include="byte.cpp" />
     <ClCompile Include="Chip8.cpp" />
     <ClCompile Include="Chip8_debug.cpp" />
-    <ClCompile Include="chip8_read_backup.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>

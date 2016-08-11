@@ -213,6 +213,10 @@ void Chip8::update()
 						std::stringstream ss;
 						ss << std::hex << std::setfill('0') << std::setw(3) << std::to_string(memory[i]);
 						debug_text[i].setString(ss.str());
+						if (strcmp(debug_text[i].getString().toAnsiString().c_str(), "000") != 0)
+							debug_text[i].setColor(sf::Color::Red);
+						else
+							debug_text[i].setColor(sf::Color::White);
 						ss.clear();
 					}
 				}
@@ -391,6 +395,11 @@ void Chip8::read()
 		}
 		break;
 	case 0x09:
+		if (get_right(instruct_buff[1]) != 0x00)
+		{
+			invalid_opcode(instruct_buff[0], instruct_buff[1]);
+			break;
+		}
 		call_stack.push_back("0x9XY0 - if VX != VY skip next instruction");
 		if (get_right(instruct_buff[0]) != get_left(instruct_buff[1]))
 		{
@@ -417,40 +426,63 @@ void Chip8::read()
 		registers[get_right(instruct_buff[0])] = (rand() % 255) & instruct_buff[1];
 		break;
 	case 0x0D:	// hexadecimal D - draw sprite at VX VY with a height of N and width of 8
-		call_stack.push_back("0xDXYN - draw sprite at VX VY, N high");
-		registers[get_right(instruct_buff[0])] = (rand() % 255) & instruct_buff[1];
+		call_stack.push_back("0xDXYN - draw sprite at VX VY, N high[UNIMPLEMENTED]");
 		break;
+	case 0x0E:
+		switch (instruct_buff[1])
+		{
+		case 0x9E:
+			call_stack.push_back("0xEX9E - Skips next instruction if key in VX is pressed[UNIMPLEMENTED]");
 
+			break;
+		case 0xA1:
+			call_stack.push_back("0xEXA1 - Skips next instruction if key in VX isn't pressed[UNIMPLEMENTED]");
 
-	case 0x0f:
+			break;
+		default:
+			invalid_opcode(instruct_buff[0], instruct_buff[1]);
+			break;
+		}
+		break;
+	case 0x0F:
 		switch (instruct_buff[1])
 		{
 		case 0x07:
+			call_stack.push_back("0xFX07 - Sets VX to value of delay timer.[UNIMPLEMENTED]");
 
 			break;
 		case 0x0A:
+			call_stack.push_back("0xFX0A - Key press is waited and stored in VX[UNIMPLEMENTED]");
 
 			break;
 		case 0x15:
-
+			call_stack.push_back("0xFX15 - set delay timer to VX");
+			delay_time = sf::seconds(registers[get_right(instruct_buff[0])]);
 			break;
 		case 0x18:
-
+			call_stack.push_back("0xFX18 - set sound timer to VX");
+			sound_time = sf::seconds(registers[get_right(instruct_buff[0])]);
 			break;
 		case 0x1E:
-
+			call_stack.push_back("0xFX1E - adds VX to I");
+			i += registers[get_right(instruct_buff[0])];
 			break;
 		case 0x29:
+			call_stack.push_back("0xFX29 - sets i to the location of sprite for char in VX[UNIMPLEMENTED]");
 
 			break;
 		case 0x33:
-
+			call_stack.push_back("0xFX33 - stores BCD of VX in memory. (look up for details)0[UNIMPLEMENTED]");
 			break;
 		case 0x55:
-
+			call_stack.push_back("0xFX55 - Stores V0 to VX to memory starting at i");
+			for (byte it = 0; it <= (get_right(instruct_buff[0])); it++)
+				memory[i + it] = registers[it];
 			break;
 		case 0x65:
-
+			call_stack.push_back("0xFX65 - Fills V0 to VX with values from memory starting at i");
+			for (byte it = 0; it <= (get_right(instruct_buff[0])); it++)
+				registers[it] = memory[i + it];
 			break;
 		default:
 			if (instruct_buff[0] == 0xff && instruct_buff[1] == 0xff)
