@@ -10,7 +10,6 @@
 Chip8::Chip8()
 {
 	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), emulation_title + "NO ROM");
-	//init_all(monitor, pixel_size, sf::Color(100, 100, 100));
 }
 
 void Chip8::run()
@@ -176,6 +175,9 @@ void Chip8::draw()
 		//for (auto _ : monitor)
 			//for (auto __ : _)
 				//window.draw(__);
+		// You only wanna display the FPS if it's set to read(which means debug data was loaded)
+		if (fps_text.getColor() == sf::Color::Red)
+			window.draw(fps_text);
 		window.display();
 	}
 }
@@ -198,7 +200,7 @@ void Chip8::update()
 						if (i < 16)
 						{
 							std::stringstream ss;
-							ss << std::hex << "V" << i << ": " << std::setfill('0') << std::setw(3) << registers[i];
+							ss << std::hex << "V" << i << ": 0x" << std::setfill('0') << std::setw(2) << std::hex << (int)registers[i];
 							register_text[i].setString(ss.str());
 						}
 						if (i < (0x1000 / 16))
@@ -265,7 +267,7 @@ void Chip8::read()
 	
 	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();
 
-	debugger.print_bytes(instruct_buff[0], instruct_buff[1]);
+	//debugger.print_bytes(instruct_buff[0], instruct_buff[1]);
 	
 	if (left_nibble(instruct_buff[0]) == 0)
 	{
@@ -444,97 +446,3 @@ Chip8::~Chip8()
 {
 }
 
-void Chip8::set_debug(bool _debug)
-{
-	loaded_debug = _debug;
-	if (loaded_debug)
-		load_debug_data();
-}
-
-void Chip8::load_debug_data()
-{
-	// TODO: Add code for call stack and stack data (as a debug toggle)
-	sf::Color debug_text_color = sf::Color::White;
-	// Debug code
-	//call_stack.resize(0x1000 / 16);
-	debug_font.loadFromFile("../DEBUG_RESOURCES/debug_font.ttf");
-	debug_text.resize(0x1000);
-	address_text.resize(0x1000 / 16);
-	register_text.resize(16);
-	for (unsigned i = mem_count_start; i < 0x1000; i++)
-	{
-		const float interval(24), vertical_spacing(3), width_limit(60), start_pos(120);
-		static float x(-interval + start_pos), y(0);
-		x += interval;
-		if (x > (width_limit * pixel_size))
-		{
-			x = start_pos;
-			y += interval - (interval / vertical_spacing);
-			debug_text[i].setPosition(x, y);
-		}
-		else
-		{
-			debug_text[i].setPosition(x, y);
-		}
-		debug_text[i].setString("000");
-		debug_text[i].setFont(debug_font);
-		debug_text[i].setColor(debug_text_color);
-		debug_text[i].setCharacterSize(12);
-		if (i < (0x1000 / 16))
-		{
-			std::stringstream ss;
-			ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
-			address_text[i].setString(ss.str() + ":");
-			address_text[i].setPosition(64.0f, (interval - (interval / vertical_spacing)) * i);
-			address_text[i].setFont(debug_font);
-			address_text[i].setColor(debug_text_color);
-			address_text[i].setCharacterSize(12);
-			ss.clear();
-		}
-		if (i < 16)
-		{
-			register_text[i].setFont(debug_font);
-			register_text[i].setColor(debug_text_color);
-			register_text[i].setCharacterSize(12);
-			// Set register names and placement
-			switch (i)
-			{
-			case 0: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 1: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 2: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 3: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 4: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 5: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 6: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 7: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 8: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 9: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 10: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 11: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 12: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 13: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 14: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			case 15: register_text[i].setPosition(2.f, (interval - (interval / vertical_spacing)) * i); break;
-			}
-		}
-	}
-	debugger.set_write(true);
-	// ...
-}
-
-void Chip8::update_frame_counter(unsigned &frame_counter)
-{
-	if (loaded_debug)
-	{
-		if (perf_clock.getElapsedTime() >= sf::milliseconds(1000))
-		{
-			std::cout << "Average frames: " << frame_counter << "\n";
-			frame_counter = 0;
-			perf_clock.restart();
-		}
-		else
-			frame_counter++;
-	}
-	else
-		;
-}

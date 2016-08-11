@@ -82,8 +82,8 @@
     <ClCompile Include="Arguments.cpp" />
     <ClCompile Include="byte.cpp" />
     <ClCompile Include="Chip8.cpp" />
+    <ClCompile Include="Chip8_debug.cpp" />
     <ClCompile Include="Debugger.cpp" />
-    <ClCompile Include="Display.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -91,7 +91,6 @@
     <ClInclude Include="byte.hpp" />
     <ClInclude Include="Chip8.hpp" />
     <ClInclude Include="Debugger.hpp" />
-    <ClInclude Include="Display.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

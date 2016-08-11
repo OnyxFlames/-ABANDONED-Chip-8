@@ -1,15 +1,17 @@
 #pragma once
 
 #include <SFML/Main.hpp>
+#include <SFML/Graphics.hpp>
 
 #include <stack>
 #include <string>
+#include <vector>
 #include <fstream>
 
 #include "byte.hpp"
-#include "Display.hpp"
 #include "Debugger.hpp"
 
+const int pixel_size = 8;	// treat each Chip-8 pixel as it is 8x8 real life pixels.
 const unsigned mem_count_start = 0x00;
 
 class Chip8
@@ -18,6 +20,7 @@ private:
 	// Debug code
 	bool loaded_debug = false;
 	sf::Font debug_font;
+	sf::Text fps_text;
 	std::vector<sf::Text> debug_text;
 	std::vector<sf::Text> address_text;
 	std::vector<sf::Text> register_text;
