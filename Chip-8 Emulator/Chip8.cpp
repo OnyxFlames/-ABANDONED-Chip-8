@@ -36,7 +36,7 @@ void Chip8::run()
 }
 bool Chip8::load_rom(const std::string ROM_location)
 {
-	ROM.open(ROM_location);
+	ROM.open(ROM_location, std::ifstream::binary);
 	if (!ROM.is_open())
 	{
 		emulation_title = emulation_title + "Error loading ROM";
@@ -129,6 +129,7 @@ void Chip8::input()
 					window.setTitle(emulation_title);
 				break;
 			default:
+				std::cout << "UNSUPPORTED KEYCODE\n";
 				// not a supported key code.
 				break;
 			}
@@ -272,8 +273,8 @@ void Chip8::read()
 
 	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();
 	
-	short jmp = 0x0000;
-
+	unsigned short jmp = 0x0000;
+	unsigned short opcode = Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] });
 	switch (get_left(instruct_buff[0]))
 	{
 	case 0x00:
@@ -300,17 +301,13 @@ void Chip8::read()
 		break;
 	case 0x01:	// jump instruction
 		call_stack.push_back("0x1NNN - Jump to NNN");
-		jmp += get_right(instruct_buff[0]);
-		jmp <<= 8;
-		jmp += instruct_buff[1];
+		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
 		ROM.seekg(jmp, std::ios::beg);
 		break;
 	case 0x02:	// call subroutine
 		call_stack.push_back("0x2NNN - Call subroutine at NNN");
-		stack.push((short)ROM.tellg());
-		jmp += get_right(instruct_buff[0]);
-		jmp <<= 8;
-		jmp += instruct_buff[1];
+		stack.push((unsigned short)ROM.tellg());
+		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
 		ROM.seekg(jmp, std::ios::beg);
 		break;
 	case 0x03:	// if VX == NN skip next instruction
@@ -370,24 +367,41 @@ void Chip8::read()
 			registers[get_right(instruct_buff[0])] ^= registers[get_left(instruct_buff[1])];
 			break;
 		case 0x04:
-			call_stack.push_back("0x8XY4 - adds VY to VX (carry: VF = 1 || no carry: VF = 0)[UNIMPLEMENTED]");
-			// TODO: add with carry opcode
+			call_stack.push_back("0x8XY4 - adds VY to VX (carry: VF = 1 || no carry: VF = 0)");
+			if (registers[get_left(instruct_buff[1])] > (0xFF - registers[get_right(instruct_buff[0])]))
+				registers[0x0F] = 0x01;
+			else
+				registers[0x0F] = 0x00;
+			// VX += VY
+			registers[get_left(instruct_buff[1])] += registers[get_right(instruct_buff[0])];
 			break;
 		case 0x05:
-			call_stack.push_back("0x8XY5 - subtracts VY from VX (borrow: VF = 0 || no borrow: VF = 1)[UNIMPLEMENTED]");
-			// TODO: subtract with borrow opcode
+			call_stack.push_back("0x8XY5 - subtracts VY from VX (borrow: VF = 0 || no borrow: VF = 1)");
+			if (registers[get_left(instruct_buff[1])] > registers[get_right(instruct_buff[0])])
+				registers[0x0F] = 0x00;
+			else
+				registers[0x0F] = 0x01;
+			// VX -= VY
+			registers[get_right(instruct_buff[0])] -= registers[get_left(instruct_buff[1])];
 			break;
 		case 0x06:
-			call_stack.push_back("0x8XY6 - shifts VX right by one. VF = value of LSB of VX before shift[UNIMPLEMENTED]");
-			// TODO: shift VX right by one -- VF equals last bit of VX before shift
+			call_stack.push_back("0x8XY6 - shifts VX right by one. VF = value of LSB of VX before shift");
+			registers[0x0F] = (get_right(instruct_buff[0]) & 0x01);
+			registers[get_right(instruct_buff[0])] >>= 1;
 			break;
 		case 0x07:
-			call_stack.push_back("0x8XY7 - VX = (VY - VX)(borrow: VF = 0 || no borrow: VF = 1)[UNIMPLEMENTED]");
-			// TODO: set VX to VY - VX -- VF is set to 0 when there is a borrow 1 when there isn't
+			call_stack.push_back("0x8XY7 - VX = (VY - VX)(borrow: VF = 0 || no borrow: VF = 1)");
+			if (registers[get_right(instruct_buff[0])] > registers[get_left(instruct_buff[1])])
+				registers[0x0F] = 0x00;
+			else
+				registers[0x0F] = 0x01;
+			// VX = VY - VX
+			registers[get_right(instruct_buff[0])] = registers[get_left(instruct_buff[1])] - registers[get_right(instruct_buff[0])];
 			break;
 		case 0x0E:
-			call_stack.push_back("0x8XYE - shifts VX left by one VF = MSB of VX before shift[UNIMPLEMENTED]");
-			// TODO: shifts VX left by one -- VF is set to the value of the first bit of VX before shift
+			call_stack.push_back("0x8XYE - shifts VX left by one VF = MSB of VX before shift");
+			registers[0x0F] = (get_right(instruct_buff[0]) & 0x08);
+			registers[get_right(instruct_buff[0])] <<= 1;
 			break;
 		default:
 			invalid_opcode(instruct_buff[0], instruct_buff[1]);
