@@ -1,6 +1,7 @@
 #include "Chip8.hpp"
 
 #include <sstream>
+#include <iomanip>
 
 void Chip8::set_debug(bool _debug)
 {
@@ -82,7 +83,6 @@ void Chip8::load_debug_data()
 			}
 		}
 	}
-	debugger.set_write(false);
 	// ...
 }
 
@@ -101,4 +101,9 @@ void Chip8::update_frame_counter(unsigned &frame_counter)
 	}
 	else
 		;
+}
+
+void invalid_opcode(byte &_byte, byte &__byte)
+{
+	std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)_byte << (int)__byte << " is not a valid opcode!\n" << std::dec;
 }

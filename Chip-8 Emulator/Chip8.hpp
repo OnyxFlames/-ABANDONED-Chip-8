@@ -9,7 +9,10 @@
 #include <fstream>
 
 #include "byte.hpp"
-#include "Debugger.hpp"
+
+using Onyx::byte;
+using Onyx::get_left;
+using Onyx::get_right;
 
 const int pixel_size = 8;	// treat each Chip-8 pixel as it is 8x8 real life pixels.
 const unsigned mem_count_start = 0x00;
@@ -29,7 +32,6 @@ private:
 	bool winsize_updated = false;
 	bool debuginfo_updated = false;
 	bool show_memory = true;	// if not memory, show the call stack.
-	Debugger debugger;
 	void load_debug_data();
 	void update_frame_counter(unsigned &frame_counter);
 	// ...
@@ -66,3 +68,4 @@ public:
 	~Chip8();
 };
 
+void invalid_opcode(byte &_byte, byte &__byte);

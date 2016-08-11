@@ -260,24 +260,26 @@ void Chip8::read()
 		else
 			return;
 	}
-	
+
 	if (pause_emulation)
 		return;
-	byte instruct_buff[2];
-	
-	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();
 
-	//debugger.print_bytes(instruct_buff[0], instruct_buff[1]);
+	byte instruct_buff[2];
+
+	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();
 	
-	if (left_nibble(instruct_buff[0]) == 0)
+	short jmp = 0x0000;
+
+	switch (get_left(instruct_buff[0]))
 	{
-		if (instruct_buff[1] == 0xE0)	// opcode is 0x00E0
+	case 0x00:
+		switch (instruct_buff[1])
 		{
+		case 0xE0:
 			call_stack.push_back("0x00E0 - Clear Screen");
 			op_clear_screen();
-		}
-		else if (instruct_buff[1] == 0xEE)	// return from subroutine
-		{
+			break;
+		case 0xEE:
 			call_stack.push_back("0x00EE - Return from Subroutine");
 			if (stack.empty())
 			{
@@ -286,161 +288,190 @@ void Chip8::read()
 			}
 			ROM.seekg(stack.top(), std::ios::beg);
 			stack.pop();
+			break;
+		default:
+			invalid_opcode(instruct_buff[0], instruct_buff[1]);
+		break;
 		}
-	}
-	else if (left_nibble(instruct_buff[0]) == 1)	// jump instruction
-	{
+		break;
+	case 0x01:	// jump instruction
 		call_stack.push_back("0x1NNN - Jump to NNN");
-		short jmp = 0x0000;
-		jmp += right_nibble(instruct_buff[0]);
+		jmp += get_right(instruct_buff[0]);
 		jmp <<= 8;
 		jmp += instruct_buff[1];
-		//debugger.jump_msg(jmp);
 		ROM.seekg(jmp, std::ios::beg);
-	}
-	else if (left_nibble(instruct_buff[0]) == 2)	// call subroutine
-	{
+		break;
+	case 0x02:	// call subroutine
 		call_stack.push_back("0x2NNN - Call subroutine at NNN");
-		short jmp = 0x0000;
 		stack.push((short)ROM.tellg());
-		jmp += right_nibble(instruct_buff[0]);
+		jmp += get_right(instruct_buff[0]);
 		jmp <<= 8;
 		jmp += instruct_buff[1];
-		//debugger.sub_msg(jmp);
 		ROM.seekg(jmp, std::ios::beg);
-	}
-	else if (left_nibble(instruct_buff[0]) == 3)	// if VX == NN skip the next two
-	{
+		break;
+	case 0x03:	// if VX == NN skip next instruction
 		call_stack.push_back("0x3XNN - if VX == NN skip next instruction.");
-		if (registers[right_nibble(instruct_buff[0])] == instruct_buff[1])
+		if (registers[get_right(instruct_buff[0])] == instruct_buff[1])
 		{
 			byte buff1, buff2;
 			buff1 = ROM.get(); buff2 = ROM.get();
-			//debugger.print_skip(buff1, buff2);
 		}
-	}
-	else if (left_nibble(instruct_buff[0]) == 4)	// if VX != NN skip the next two
-	{
+		break;
+	case 0x04:	// if VX != NN skip the next two
 		call_stack.push_back("0x4XNN - if VX != NN skip next instruction.");
-		if (registers[right_nibble(instruct_buff[0])] != instruct_buff[1])
+		if (registers[get_right(instruct_buff[0])] != instruct_buff[1])
 		{
 			byte buff1, buff2;
 			buff1 = ROM.get(); buff2 = ROM.get();
-			//debugger.print_skip(buff1, buff2);
 		}
-	}
-	else if (left_nibble(instruct_buff[0]) == 5)	// if VX == VY skip the next two
-	{
+		break;
+	case 0x05:	// if VX == VY skip the next two
+		if (get_right(instruct_buff[1]) != 0x00)
+		{
+			invalid_opcode(instruct_buff[0], instruct_buff[1]);
+			break;
+		}
 		call_stack.push_back("0x5XY0 - if VX == VY skip next instruction.");
-		if (registers[right_nibble(instruct_buff[0])] == registers[left_nibble(instruct_buff[1])])
+		if (registers[get_right(instruct_buff[0])] == registers[get_left(instruct_buff[1])])
 		{
 			byte buff1, buff2;
 			buff1 = ROM.get(); buff2 = ROM.get();
-			//debugger.print_skip(buff1, buff2);
 		}
-	}
-	else if (left_nibble(instruct_buff[0]) == 6)	// sets VX to NN
-	{
+		break;
+	case 0x06:	// sets VX to NN
 		call_stack.push_back("0x6XNN - set VX to NN");
-		registers[right_nibble(instruct_buff[0])] = instruct_buff[1];
-	}
-	else if (left_nibble(instruct_buff[0]) == 7)	// adds NN to VX
-	{
+		registers[get_right(instruct_buff[0])] = instruct_buff[1];
+		break;
+	case 0x07:	// adds VX to NN
 		call_stack.push_back("0x7XNN - adds VX to NN");
-		registers[right_nibble(instruct_buff[0])] += instruct_buff[1];
-	}
-	else if (left_nibble(instruct_buff[0]) == 8)
-	{
-		
-		if (right_nibble(instruct_buff[1]) == 0)	// set VX to the value of VY
+		registers[get_right(instruct_buff[0])] += instruct_buff[1];
+		break;
+	case 0x08:
+		switch (get_right(instruct_buff[1]))
 		{
+		case 0x00:	// set VX to the value of VY
 			call_stack.push_back("0x8XY0 - set VX to the value of VY");
-			registers[right_nibble(instruct_buff[0])] = registers[left_nibble(instruct_buff[1])];
-		}
-		else if (right_nibble(instruct_buff[1]) == 1)
-		{
-			call_stack.push_back("0x8XY1 - set VX to (VX | VY)");
-			registers[right_nibble(instruct_buff[0])] |= registers[left_nibble(instruct_buff[1])];
-		}
-		else if (right_nibble(instruct_buff[1]) == 2)
-		{
+			registers[get_right(instruct_buff[0])] = registers[get_left(instruct_buff[1])];
+			break;
+		case 0x01:	// set VX to (VX | VY)
+				call_stack.push_back("0x8XY1 - set VX to (VX | VY)");
+				registers[get_right(instruct_buff[0])] |= registers[get_left(instruct_buff[1])];
+			break;
+		case 0x02:	// set VX to (VX & VY)
 			call_stack.push_back("0x8XY2 - set VX to (VX & VY)");
-			registers[right_nibble(instruct_buff[0])] &= registers[left_nibble(instruct_buff[1])];
-		}
-		else if (right_nibble(instruct_buff[1]) == 3)
-		{
+			registers[get_right(instruct_buff[0])] &= registers[get_left(instruct_buff[1])];
+			break;
+		case 0x03:	// set VX to (VX ^ VY)
 			call_stack.push_back("0x8XY3 - set VX to (VX ^ VY)");
-			registers[right_nibble(instruct_buff[0])] ^= registers[left_nibble(instruct_buff[1])];
-		}
-		else if (right_nibble(instruct_buff[1]) == 4)
-		{
+			registers[get_right(instruct_buff[0])] ^= registers[get_left(instruct_buff[1])];
+			break;
+		case 0x04:
 			call_stack.push_back("0x8XY4 - adds VY to VX (carry: VF = 1 || no carry: VF = 0)[UNIMPLEMENTED]");
 			// TODO: add with carry opcode
-		}
-		else if (right_nibble(instruct_buff[1]) == 5)
-		{
+			break;
+		case 0x05:
 			call_stack.push_back("0x8XY5 - subtracts VY from VX (borrow: VF = 0 || no borrow: VF = 1)[UNIMPLEMENTED]");
 			// TODO: subtract with borrow opcode
-		}
-		else if (right_nibble(instruct_buff[1]) == 6)
-		{
+			break;
+		case 0x06:
 			call_stack.push_back("0x8XY6 - shifts VX right by one. VF = value of LSB of VX before shift[UNIMPLEMENTED]");
 			// TODO: shift VX right by one -- VF equals last bit of VX before shift
-		}
-		else if (right_nibble(instruct_buff[1]) == 7)
-		{
+			break;
+		case 0x07:
 			call_stack.push_back("0x8XY7 - VX = (VY - VX)(borrow: VF = 0 || no borrow: VF = 1)[UNIMPLEMENTED]");
 			// TODO: set VX to VY - VX -- VF is set to 0 when there is a borrow 1 when there isn't
-		}
-		else if (right_nibble(instruct_buff[1]) == 14)
-		{
+			break;
+		case 0x0E:
 			call_stack.push_back("0x8XYE - shifts VX left by one VF = MSB of VX before shift[UNIMPLEMENTED]");
 			// TODO: shifts VX left by one -- VF is set to the value of the first bit of VX before shift
+			break;
+		default:
+			invalid_opcode(instruct_buff[0], instruct_buff[1]);
+			break;
 		}
-	}
-	else if (left_nibble(instruct_buff[0]) == 9)
-	{
+		break;
+	case 0x09:
 		call_stack.push_back("0x9XY0 - if VX != VY skip next instruction");
-		if (right_nibble(instruct_buff[0]) != left_nibble(instruct_buff[1]))
+		if (get_right(instruct_buff[0]) != get_left(instruct_buff[1]))
 		{
 			byte buff1, buff2;
 			buff1 = ROM.get(); buff2 = ROM.get();
-			//debugger.print_skip(buff1, buff2);
 		}
-	}
-	else if (left_nibble(instruct_buff[0]) == 10)	// hexadecimal A - ANNN: set i to NNN
-	{
+		break;
+	case 0x0A:	// hexadecimal A - ANNN: set i to NNN
 		call_stack.push_back("0xANNN - i = NNN");
-		short temp = 0x0000;
-		temp += right_nibble(instruct_buff[0]);
-		temp <<= 8;
-		temp += instruct_buff[1];
-		i = temp;
-	}
-	else if (left_nibble(instruct_buff[0]) == 11)	// hexadecimal B - BNNN: jump to NNN + V0
-	{
+		jmp += get_right(instruct_buff[0]);
+		jmp <<= 8;
+		jmp += instruct_buff[1];
+		i = jmp;
+		break;
+	case 0x0B:	// hexadecimal B - BNNN: jump to NNN + V0
 		call_stack.push_back("0xBNNN - jump to NNN + V0");
-		short jmp = 0x0000;
-		jmp += right_nibble(instruct_buff[0]);
+		jmp += get_right(instruct_buff[0]);
 		jmp <<= 8;
 		jmp += instruct_buff[1];
 		ROM.seekg(jmp + registers[0x00], std::ios::beg);
-	}
-	else if (left_nibble(instruct_buff[0]) == 12)	// hexadecimal C - sets VX to the result of (rand() & NN)
-	{
+		break;
+	case 0x0C:	// hexadecimal C - sets VX to the result of (rand() & NN)
 		call_stack.push_back("0xCXNN - VX = (rand() & NN)");
-		registers[right_nibble(instruct_buff[0])] = (rand() % 255) & instruct_buff[1];
-	}
-	else if (left_nibble(instruct_buff[0]) == 13)	// hexadecimal D - draw sprite at VX VY with a height of N and width of 8
-	{
+		registers[get_right(instruct_buff[0])] = (rand() % 255) & instruct_buff[1];
+		break;
+	case 0x0D:	// hexadecimal D - draw sprite at VX VY with a height of N and width of 8
 		call_stack.push_back("0xDXYN - draw sprite at VX VY, N high");
-		registers[right_nibble(instruct_buff[0])] = (rand() % 255) & instruct_buff[1];
+		registers[get_right(instruct_buff[0])] = (rand() % 255) & instruct_buff[1];
+		break;
+
+
+	case 0x0f:
+		switch (instruct_buff[1])
+		{
+		case 0x07:
+
+			break;
+		case 0x0A:
+
+			break;
+		case 0x15:
+
+			break;
+		case 0x18:
+
+			break;
+		case 0x1E:
+
+			break;
+		case 0x29:
+
+			break;
+		case 0x33:
+
+			break;
+		case 0x55:
+
+			break;
+		case 0x65:
+
+			break;
+		default:
+			if (instruct_buff[0] == 0xff && instruct_buff[1] == 0xff)
+			{
+				ROM.close();
+				run();
+				break;
+			}
+				invalid_opcode(instruct_buff[0], instruct_buff[1]);
+			break;
+		}
+
+	default:
+		invalid_opcode(instruct_buff[0], instruct_buff[1]);
+		break;
 	}
 }
 
 void Chip8::op_clear_screen()
 {
-	//color_pixels(monitor, sf::Color::Black);
+	window.clear();
 }
 Chip8::~Chip8()
 {
