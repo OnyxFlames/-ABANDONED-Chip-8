@@ -52,6 +52,7 @@ private:
 	sf::Event event;
 
 	// core functions
+	void loadFont();
 	void read();
 	void input();
 	void update();
@@ -70,3 +71,5 @@ public:
 };
 
 void invalid_opcode(byte &_byte, byte &__byte);
+
+byte fontset[];

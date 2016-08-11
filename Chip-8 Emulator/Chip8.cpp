@@ -9,7 +9,8 @@
 
 Chip8::Chip8()
 {
-	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), emulation_title + "NO ROM");
+	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), emulation_title + "NO ROM"); 
+	loadFont();
 }
 
 void Chip8::run()
@@ -66,12 +67,15 @@ void Chip8::input()
 	while (window.pollEvent(event))
 	{
 		// TODO: Make closing the emulator cleaner once more progress has been made.
-		if (event.type == sf::Event::Closed || sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+		if (event.type == sf::Event::Closed)
 			window.close();
 		if (event.type == sf::Event::KeyPressed)
 		{
 			switch (event.key.code)
 			{
+			case sf::Keyboard::Escape:
+				window.close();
+				break;
 			case sf::Keyboard::F1:
 				if (loaded_debug)
 				{
@@ -159,7 +163,7 @@ void Chip8::draw()
 			}
 			else if (!show_memory)
 			{
-				// to lessen the load on the Chip8 class, we will reuse the debug_text vector
+				// to lessen the load on the Chip8 class, we will reuse the address_text vector
 				for (unsigned i = mem_count_start; i < 0x1000; i++)
 				{
 					if (i < (0x1000 / 16))
@@ -212,7 +216,7 @@ void Chip8::update()
 							ss.clear();
 						}
 						std::stringstream ss;
-						ss << std::hex << std::setfill('0') << std::setw(3) << std::to_string(memory[i]);
+						ss << std::hex << std::setfill('0') << std::setw(3) << (int)memory[i];
 						debug_text[i].setString(ss.str());
 						if (strcmp(debug_text[i].getString().toAnsiString().c_str(), "000") != 0)
 							debug_text[i].setColor(sf::Color::Red);
@@ -483,7 +487,64 @@ void Chip8::read()
 			break;
 		case 0x29:
 			call_stack.push_back("0xFX29 - sets i to the location of sprite for char in VX[UNIMPLEMENTED]");
-
+			{
+			const short font_origin = 0x0000;
+			const short font_byte_size = 6;
+			switch (registers[get_right(instruct_buff[0])])
+			{
+			case '0':
+				i = font_origin;
+				break;
+			case '1':
+				i = font_origin + font_byte_size * 1;
+				break;
+			case '2':
+				i = font_origin + font_byte_size * 2;
+				break;
+			case '3':
+				i = font_origin + font_byte_size * 3;
+				break;
+			case '4':
+				i = font_origin + font_byte_size * 4;
+				break;
+			case '5':
+				i = font_origin + font_byte_size * 5;
+				break;
+			case '6':
+				i = font_origin + font_byte_size * 6;
+				break;
+			case '7':
+				i = font_origin + font_byte_size * 7;
+				break;
+			case '8':
+				i = font_origin + font_byte_size * 8;
+				break;
+			case '9':
+				i = font_origin + font_byte_size * 9;
+				break;
+			case 'A':
+				i = font_origin + font_byte_size * 10;
+				break;
+			case 'B':
+				i = font_origin + font_byte_size * 11;
+				break;
+			case 'C':
+				i = font_origin + font_byte_size * 12;
+				break;
+			case 'D':
+				i = font_origin + font_byte_size * 13;
+				break;
+			case 'E':
+				i = font_origin + font_byte_size * 14;
+				break;
+			case 'F':
+				i = font_origin + font_byte_size * 15;
+				break;
+			default:
+				i = font_origin;
+				break;
+			}
+			}
 			break;
 		case 0x33:
 			call_stack.push_back("0xFX33 - stores BCD of VX in memory. (look up for details)0[UNIMPLEMENTED]");
@@ -519,7 +580,31 @@ void Chip8::op_clear_screen()
 {
 	window.clear();
 }
+void Chip8::loadFont()
+{						//font set size is 80 bytes.
+	for (byte it = 0; it < 80; it++)
+		memory[it] = fontset[it];
+}
 Chip8::~Chip8()
 {
 }
 
+byte fontset[80] =	// from http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/
+{
+	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+	0x20, 0x60, 0x20, 0x20, 0x70, // 1
+	0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+	0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+	0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+	0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+	0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+	0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+	0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+	0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+	0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+	0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+	0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+	0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+	0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+	0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
