@@ -160,6 +160,70 @@ void Chip8::update_debug()
 	debuginfo_updated = true;
 }
 
+void Chip8::draw_debug()
+{
+	if (debuginfo_updated)
+	{
+		window.clear();
+		if (show_memory)
+		{
+			for (unsigned i = mem_count_start; i < 0x1000; i++)
+			{
+				if (i < 16)
+					window.draw(register_text[i]);
+				if (i < 0x1000 / 16)
+					window.draw(address_text[i]);
+				window.draw(debug_text[i]);
+			}
+		}
+		else if (!show_memory)
+		{
+			// to lessen the load on the Chip8 class, we will reuse the address_text vector
+			for (unsigned i = mem_count_start; i < 0x1000; i++)
+			{
+				if (i < (0x1000 / 16))
+					window.draw(address_text[i]);
+			}
+		}
+		window.display();
+		debuginfo_updated = true;
+	}
+}
+
+void Chip8::update_debugtext(const int _spacing, const int _limit, const char _direction)
+{
+	if (_direction == DOWN)
+	{
+		if (debug_text[0].getPosition().y > _limit || address_text[0].getPosition().y > _limit)
+		{
+			for (unsigned i = mem_count_start; i < 0x1000; i++)
+			{
+				if (i < 0x1000 / 16)
+					address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y - _spacing);
+
+				debug_text[i].setPosition(debug_text[i].getPosition().x, debug_text[i].getPosition().y - _spacing);
+			}
+		}
+		else
+			;// don't move it
+	}
+	else if (_direction == UP)
+	{
+		if (debug_text[0].getPosition().y < 0 || address_text[0].getPosition().y < 0)
+		{
+			for (unsigned i = mem_count_start; i < 0x1000; i++)
+			{
+				if (i < 0x1000 / 16)
+					address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y + _spacing);
+
+				debug_text[i].setPosition(debug_text[i].getPosition().x, debug_text[i].getPosition().y + _spacing);
+			}
+		}
+		else
+			;// don't move it
+	}
+}
+
 void invalid_opcode(byte &_byte, byte &__byte)
 {
 	std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)_byte << std::setfill('0') << std::setw(2) << (int)__byte << " is not a valid opcode!\n" << std::dec;

@@ -62,11 +62,10 @@ void Chip8::input()
 {
 	if (!window.isOpen())
 		ROM.seekg(std::ios::end);
-	//TODO: find a sweet spot for the vertical limit so it ends on the bottom of the window instead of slightly above bottom
-	const int text_spacing = 56, vertical_limit(-3810);
+	//TODO: Add the value of the i register to the bottom of the memory block page.
+	const int text_spacing(56), vertical_limit(-3810);
 	while (window.pollEvent(event))
 	{
-		// TODO: Make closing the emulator cleaner once more progress has been made.
 		if (event.type == sf::Event::Closed)
 			window.close();
 		if (event.type == sf::Event::KeyPressed)
@@ -85,37 +84,11 @@ void Chip8::input()
 				break;
 			case sf::Keyboard::Down:
 				if (debug_flag)
-				{
-					if (debug_text[0].getPosition().y > vertical_limit || address_text[0].getPosition().y > vertical_limit)
-					{
-						for (unsigned i = mem_count_start; i < 0x1000; i++)
-						{
-							if (i < 0x1000 / 16)
-								address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y - text_spacing);
-
-							debug_text[i].setPosition(debug_text[i].getPosition().x, debug_text[i].getPosition().y - text_spacing);
-						}
-					}
-					else
-						;// don't move it
-				}
+					update_debugtext(text_spacing, vertical_limit, DOWN);
 				break;
 			case sf::Keyboard::Up:
 				if (debug_flag)
-				{
-					if (debug_text[0].getPosition().y < 0 || address_text[0].getPosition().y < 0)
-					{
-						for (unsigned i = mem_count_start; i < 0x1000; i++)
-						{
-							if (i < 0x1000 / 16)
-								address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y + text_spacing);
-
-							debug_text[i].setPosition(debug_text[i].getPosition().x, debug_text[i].getPosition().y + text_spacing);
-						}
-					}
-					else
-						;// don't move it
-				}
+					update_debugtext(text_spacing, vertical_limit, UP);
 				break;
 			case sf::Keyboard::Tab:
 				if (debug_flag)
@@ -134,7 +107,6 @@ void Chip8::input()
 				break;
 			default:
 				std::cout << "UNSUPPORTED KEYCODE\n";
-				// not a supported key code.
 				break;
 			}
 		}
@@ -147,32 +119,7 @@ void Chip8::draw()
 {
 	if (debug_flag)
 	{
-		if (debuginfo_updated)
-		{
-			window.clear();
-			if (show_memory)
-			{
-				for (unsigned i = mem_count_start; i < 0x1000; i++)
-				{
-					if (i < 16)
-						window.draw(register_text[i]);
-					if (i < 0x1000 / 16)
-						window.draw(address_text[i]);
-					window.draw(debug_text[i]);
-				}
-			}
-			else if (!show_memory)
-			{
-				// to lessen the load on the Chip8 class, we will reuse the address_text vector
-				for (unsigned i = mem_count_start; i < 0x1000; i++)
-				{
-					if (i < (0x1000 / 16))
-						window.draw(address_text[i]);
-				}
-			}
-			window.display();
-			debuginfo_updated = true;
-		}
+		draw_debug();
 	}
 	else
 	{
@@ -180,7 +127,8 @@ void Chip8::draw()
 		//for (auto _ : monitor)
 			//for (auto __ : _)
 				//window.draw(__);
-		// You only wanna display the FPS if it's set to red(which means debug data was loaded)
+		
+				// You only wanna display the FPS if it's set to red(which means debug data was loaded)
 		if (fps_text.getColor() == sf::Color::Red)
 			window.draw(fps_text);
 		window.display();

@@ -17,6 +17,12 @@ using Onyx::get_right;
 const int pixel_size = 8;	// treat each Chip-8 pixel as it is 8x8 real life pixels.
 const unsigned mem_count_start = 0x00;
 
+enum TEXT_DIRECTION
+{
+	DOWN,
+	UP,
+};
+
 class Chip8
 {
 private:
@@ -35,6 +41,8 @@ private:
 	void load_debug_data();
 	void update_frame_counter(unsigned &frame_counter);
 	void update_debug();
+	void draw_debug();
+	void update_debugtext(const int _spacing, const int _limit, const char _direction);
 	// ...
 	std::string emulation_title = "Chip-8 - ";
 	bool pause_emulation = false;
