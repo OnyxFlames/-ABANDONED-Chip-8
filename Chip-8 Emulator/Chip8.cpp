@@ -190,59 +190,7 @@ void Chip8::update()
 {
 	if (debug_flag)
 	{
-		if (!winsize_updated)
-		{
-			window.setSize(sf::Vector2u(64 * pixel_size * 2, 32 * pixel_size * 2));
-			winsize_updated = true;
-		}
-		if (!debuginfo_updated)
-		{
-			if (show_memory)
-			{
-					// update address text quick
-					for (unsigned i = mem_count_start; i < 0x1000; i++)
-					{
-						if (i < 16)
-						{
-							std::stringstream ss;
-							ss << std::hex << "V" << i << ": 0x" << std::setfill('0') << std::setw(2) << std::hex << (int)registers[i];
-							register_text[i].setString(ss.str());
-						}
-						if (i < (0x1000 / 16))
-						{
-							std::stringstream ss;
-							ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
-							address_text[i].setString(ss.str() + ":");
-							ss.clear();
-						}
-						std::stringstream ss;
-						ss << std::hex << std::setfill('0') << std::setw(2) << (int)memory[i];
-						debug_text[i].setString(ss.str());
-						if (strcmp(debug_text[i].getString().toAnsiString().c_str(), "00") != 0)
-							debug_text[i].setColor(sf::Color::Red);
-						else
-							debug_text[i].setColor(sf::Color::White);
-						ss.clear();
-					}
-				}
-				else if (!show_memory)
-				{
-
-					for (unsigned i = mem_count_start; i < 0x1000; i++)
-					{
-						if (i < (0x1000 / 16))
-						{
-							if (call_stack.size() > i)
-							{
-								address_text[i].setString(call_stack[i]);
-							}
-							else
-								address_text[i].setString("");
-						}
-					}
-				}
-		}
-			debuginfo_updated = true;
+		update_debug();
 	}
 	else
 	{
@@ -569,7 +517,7 @@ void Chip8::read()
 				invalid_opcode(instruct_buff[0], instruct_buff[1]);
 			break;
 		}
-
+		break;
 	default:
 		invalid_opcode(instruct_buff[0], instruct_buff[1]);
 		break;

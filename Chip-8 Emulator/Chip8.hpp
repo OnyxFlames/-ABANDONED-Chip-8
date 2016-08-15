@@ -34,6 +34,7 @@ private:
 	bool show_memory = true;	// if not memory, show the call stack.
 	void load_debug_data();
 	void update_frame_counter(unsigned &frame_counter);
+	void update_debug();
 	// ...
 	std::string emulation_title = "Chip-8 - ";
 	bool pause_emulation = false;
