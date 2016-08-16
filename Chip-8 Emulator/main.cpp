@@ -5,6 +5,7 @@
 #include "Chip8.hpp"
 #include "Arguments.hpp"
 
+bool dump_callstack = false;
 bool pause_on_start = false;
 bool load_debug_data = false;
 std::string rom_name = "";
@@ -29,8 +30,7 @@ int main(int argc, char* argv[])
 	
 	chip8.set_debug(load_debug_data);	// load debug info (heavy function)
 	chip8.pause(pause_on_start);
-
 	chip8.run();
-
+	chip8.dump_callstack(dump_callstack);
 	return 0;
 }

@@ -16,7 +16,7 @@ Chip8::Chip8()
 void Chip8::run()
 {
 		register unsigned frame_counter = 0;
-		while (!ROM.eof() && ROM.is_open())
+		while (is_open)
 		{
 			read();		// won't if paused
 			input();
@@ -42,13 +42,23 @@ bool Chip8::load_rom(const std::string ROM_location)
 	{
 		emulation_title = emulation_title + "Error loading ROM";
 		window.setTitle(emulation_title);
+		return false;
 	}
 	else
 	{
 		emulation_title = emulation_title + "\"" + ROM_location + "\"";
 		window.setTitle(emulation_title);
+
+		// loading the rom into memory
+		unsigned it = 0;
+		while (!ROM.eof())
+			ROM_DATA[it++] = ROM.get();
+		ROM.close();
+		while (it < 0x1000)
+			ROM_DATA[it++] = 0xFF;
+		return true;
 	}
-	return ROM.is_open();
+	return true;
 }
 void Chip8::pause(bool _pause)
 {
@@ -61,7 +71,7 @@ void Chip8::pause(bool _pause)
 void Chip8::input()
 {
 	if (!window.isOpen())
-		ROM.seekg(std::ios::end);
+		is_open = false;
 	//TODO: Add the value of the i register to the bottom of the memory block page.
 	const int text_spacing(56), vertical_limit(-3810);
 	while (window.pollEvent(event))
@@ -123,11 +133,17 @@ void Chip8::draw()
 	}
 	else
 	{
-		window.clear(sf::Color::White);
-		//for (auto _ : monitor)
-			//for (auto __ : _)
-				//window.draw(__);
-		
+		window.clear(sf::Color::Black);
+		/*for (auto _ : screen)
+		{
+			for (auto __ : _)
+			{
+				if (__.is_set())
+				{
+					window.draw(__.get_pixel());
+				}
+			}
+		}*/
 				// You only wanna display the FPS if it's set to red(which means debug data was loaded)
 		if (fps_text.getColor() == sf::Color::Red)
 			window.draw(fps_text);
@@ -158,20 +174,15 @@ void Chip8::update()
 void Chip8::read()
 {
 	// Skip attempt to read opcodes.. they aren't there
-	if (!ROM.is_open())
-	{
-		if (loaded_debug)
-			ROM.seekg(std::ios::end);
-		else
-			return;
-	}
+	if (!is_open)
+		return;
 
 	if (pause_emulation)
 		return;
 
 	byte instruct_buff[2];
 
-	instruct_buff[0] = ROM.get(); instruct_buff[1] = ROM.get();
+	instruct_buff[0] = ROM_DATA[pc++]; instruct_buff[1] = ROM_DATA[pc];
 	
 	unsigned short jmp = 0x0000;
 	unsigned short opcode = Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] });
@@ -191,39 +202,37 @@ void Chip8::read()
 				std::cout << "ATTEMPTED TO RETURN FROM UNKNOWN SUBROUTINE. Please fix.\n";
 				std::exit(-1);
 			}
-			ROM.seekg(stack.top(), std::ios::beg);
+			pc = stack.top();
 			stack.pop();
 			break;
 		default:
 			invalid_opcode(instruct_buff[0], instruct_buff[1]);
-		break;
+			break;
 		}
 		break;
 	case 0x01:	// jump instruction
 		call_stack.push_back("0x1NNN - Jump to NNN");
 		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
-		ROM.seekg(jmp, std::ios::beg);
+		pc = jmp;
 		break;
 	case 0x02:	// call subroutine
 		call_stack.push_back("0x2NNN - Call subroutine at NNN");
-		stack.push((unsigned short)ROM.tellg());
+		stack.push(pc);
 		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
-		ROM.seekg(jmp, std::ios::beg);
+		pc = jmp;
 		break;
 	case 0x03:	// if VX == NN skip next instruction
 		call_stack.push_back("0x3XNN - if VX == NN skip next instruction.");
 		if (registers[get_right(instruct_buff[0])] == instruct_buff[1])
 		{
-			byte buff1, buff2;
-			buff1 = ROM.get(); buff2 = ROM.get();
+			pc += 2;
 		}
 		break;
 	case 0x04:	// if VX != NN skip the next two
 		call_stack.push_back("0x4XNN - if VX != NN skip next instruction.");
 		if (registers[get_right(instruct_buff[0])] != instruct_buff[1])
 		{
-			byte buff1, buff2;
-			buff1 = ROM.get(); buff2 = ROM.get();
+			pc += 2;
 		}
 		break;
 	case 0x05:	// if VX == VY skip the next two
@@ -235,8 +244,7 @@ void Chip8::read()
 		call_stack.push_back("0x5XY0 - if VX == VY skip next instruction.");
 		if (registers[get_right(instruct_buff[0])] == registers[get_left(instruct_buff[1])])
 		{
-			byte buff1, buff2;
-			buff1 = ROM.get(); buff2 = ROM.get();
+			pc += 2;
 		}
 		break;
 	case 0x06:	// sets VX to NN
@@ -244,7 +252,7 @@ void Chip8::read()
 		registers[get_right(instruct_buff[0])] = instruct_buff[1];
 		break;
 	case 0x07:	// adds VX to NN
-		call_stack.push_back("0x7XNN - adds VX to NN");
+		call_stack.push_back("0x7XNN - add VX to NN");
 		registers[get_right(instruct_buff[0])] += instruct_buff[1];
 		break;
 	case 0x08:
@@ -255,8 +263,8 @@ void Chip8::read()
 			registers[get_right(instruct_buff[0])] = registers[get_left(instruct_buff[1])];
 			break;
 		case 0x01:	// set VX to (VX | VY)
-				call_stack.push_back("0x8XY1 - set VX to (VX | VY)");
-				registers[get_right(instruct_buff[0])] |= registers[get_left(instruct_buff[1])];
+			call_stack.push_back("0x8XY1 - set VX to (VX | VY)");
+			registers[get_right(instruct_buff[0])] |= registers[get_left(instruct_buff[1])];
 			break;
 		case 0x02:	// set VX to (VX & VY)
 			call_stack.push_back("0x8XY2 - set VX to (VX & VY)");
@@ -317,23 +325,24 @@ void Chip8::read()
 		call_stack.push_back("0x9XY0 - if VX != VY skip next instruction");
 		if (get_right(instruct_buff[0]) != get_left(instruct_buff[1]))
 		{
-			byte buff1, buff2;
-			buff1 = ROM.get(); buff2 = ROM.get();
+			pc += 2;
 		}
 		break;
 	case 0x0A:	// hexadecimal A - ANNN: set i to NNN
 		call_stack.push_back("0xANNN - i = NNN");
-		jmp += get_right(instruct_buff[0]);
-		jmp <<= 8;
-		jmp += instruct_buff[1];
+		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
+		//jmp += get_right(instruct_buff[0]);
+		//jmp <<= 8;
+		//jmp += instruct_buff[1];
 		i = jmp;
 		break;
 	case 0x0B:	// hexadecimal B - BNNN: jump to NNN + V0
 		call_stack.push_back("0xBNNN - jump to NNN + V0");
-		jmp += get_right(instruct_buff[0]);
-		jmp <<= 8;
-		jmp += instruct_buff[1];
-		ROM.seekg(jmp + registers[0x00], std::ios::beg);
+		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
+		//jmp += get_right(instruct_buff[0]);
+		//jmp <<= 8;
+		//jmp += instruct_buff[1];
+		pc = (jmp + registers[0x00]);
 		break;
 	case 0x0C:	// hexadecimal C - sets VX to the result of (rand() & NN)
 		call_stack.push_back("0xCXNN - VX = (rand() & NN)");
@@ -341,6 +350,25 @@ void Chip8::read()
 		break;
 	case 0x0D:	// hexadecimal D - draw sprite at VX VY with a height of N and width of 8
 		call_stack.push_back("0xDXYN - draw sprite at VX VY, N high[UNIMPLEMENTED]");
+		{
+			byte x(Onyx::get_right(instruct_buff[0])), y(Onyx::get_left(instruct_buff[1])), height = Onyx::get_right(instruct_buff[1]);
+			for (unsigned it = 0; it < height; it++)
+			{
+				for (byte it2 = 0x1; it2 < 0xF; it2++)
+				{
+					if ((i & it2) == 0x1)
+					{
+						if (screen[x][y + it].is_set())
+						{
+							registers[0x0F] = 1;
+							screen[x][y + it].set_pixel(false);
+						}
+						else
+							screen[x][y + it].set_pixel(true);
+					}
+				}
+			}
+		}
 		break;
 	case 0x0E:
 		switch (instruct_buff[1])
@@ -458,7 +486,7 @@ void Chip8::read()
 		default:
 			if (instruct_buff[0] == 0xff && instruct_buff[1] == 0xff)
 			{
-				ROM.close();
+				is_open = false;
 				run();
 				break;
 			}

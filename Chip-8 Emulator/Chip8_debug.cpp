@@ -20,7 +20,7 @@ void Chip8::load_debug_data()
 	// Debug code
 	debug_font.loadFromFile("../DEBUG_RESOURCES/debug_font.ttf");
 	debug_text.resize(_mem_size);
-	address_text.resize(_mem_size / _divisor);
+	address_text.resize(((_mem_size / _divisor) + 1));
 	register_text.resize(_divisor);
 	fps_text.setFont(debug_font);
 	fps_text.setColor(fps_text_color);
@@ -45,16 +45,28 @@ void Chip8::load_debug_data()
 		debug_text[i].setFont(debug_font);
 		debug_text[i].setColor(debug_text_color);
 		debug_text[i].setCharacterSize(12);
-		if (i < (_mem_size / _divisor))
+		if (i < ((_mem_size / _divisor) + 1))
 		{
 			std::stringstream ss;
-			ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
-			address_text[i].setString(ss.str() + ":");
-			address_text[i].setPosition(64.0f, (interval - (interval / vertical_spacing)) * i);
-			address_text[i].setFont(debug_font);
-			address_text[i].setColor(debug_text_color);
-			address_text[i].setCharacterSize(12);
-			ss.clear();
+			if (i < (_mem_size / _divisor))
+			{
+				ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
+				address_text[i].setString(ss.str() + ":");
+				address_text[i].setPosition(64.0f, (interval - (interval / vertical_spacing)) * i);
+				address_text[i].setFont(debug_font);
+				address_text[i].setColor(debug_text_color);
+				address_text[i].setCharacterSize(12);
+				ss.clear();
+			}
+			else
+			{
+				ss << std::hex << "Register i: " << std::setfill('0') << std::setw(3) << this->i;
+				address_text[i].setString(ss.str());
+				address_text[i].setPosition(64.0f, (interval - (interval / vertical_spacing)) * i);
+				address_text[i].setFont(debug_font);
+				address_text[i].setColor(debug_text_color);
+				address_text[i].setCharacterSize(12);
+			}
 		}
 		if (i < _divisor)
 		{
@@ -119,16 +131,25 @@ void Chip8::update_debug()
 			{
 				if (i < 16)
 				{
-					std::stringstream ss;
-					ss << std::hex << "V" << i << ": 0x" << std::setfill('0') << std::setw(2) << std::hex << (int)registers[i];
-					register_text[i].setString(ss.str());
+						std::stringstream ss;
+						ss << std::hex << "V" << i << ": 0x" << std::setfill('0') << std::setw(2) << std::hex << (int)registers[i];
+						register_text[i].setString(ss.str());
 				}
-				if (i < (0x1000 / 16))
+				if (i < ((0x1000 / 16) + 1))
 				{
 					std::stringstream ss;
-					ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
-					address_text[i].setString(ss.str() + ":");
-					ss.clear();
+					if (i < (0x1000 / 16))
+					{
+						ss << std::hex << "0x" << std::setfill('0') << std::setw(3) << (i * 16);
+						address_text[i].setString(ss.str() + ":");
+						ss.clear();
+					}
+					else
+					{
+						ss << std::hex << "Register i: " << std::setfill('0') << std::setw(4) << this->i;
+						address_text[i].setString(ss.str());
+						ss.clear();
+					}
 				}
 				std::stringstream ss;
 				ss << std::hex << std::setfill('0') << std::setw(2) << (int)memory[i];
@@ -171,7 +192,7 @@ void Chip8::draw_debug()
 			{
 				if (i < 16)
 					window.draw(register_text[i]);
-				if (i < 0x1000 / 16)
+				if (i < ((0x1000 / 16) + 1))
 					window.draw(address_text[i]);
 				window.draw(debug_text[i]);
 			}
@@ -198,7 +219,7 @@ void Chip8::update_debugtext(const int _spacing, const int _limit, const char _d
 		{
 			for (unsigned i = mem_count_start; i < 0x1000; i++)
 			{
-				if (i < 0x1000 / 16)
+				if (i < ((0x1000 / 16) + 1))
 					address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y - _spacing);
 
 				debug_text[i].setPosition(debug_text[i].getPosition().x, debug_text[i].getPosition().y - _spacing);
@@ -213,7 +234,7 @@ void Chip8::update_debugtext(const int _spacing, const int _limit, const char _d
 		{
 			for (unsigned i = mem_count_start; i < 0x1000; i++)
 			{
-				if (i < 0x1000 / 16)
+				if (i < ((0x1000 / 16) + 1))
 					address_text[i].setPosition(address_text[i].getPosition().x, address_text[i].getPosition().y + _spacing);
 
 				debug_text[i].setPosition(debug_text[i].getPosition().x, debug_text[i].getPosition().y + _spacing);
@@ -227,6 +248,21 @@ void Chip8::update_debugtext(const int _spacing, const int _limit, const char _d
 void invalid_opcode(byte &_byte, byte &__byte)
 {
 	std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)_byte << std::setfill('0') << std::setw(2) << (int)__byte << " is not a valid opcode!\n" << std::dec;
+}
+
+void Chip8::dump_callstack(bool _dump)
+{
+	if (_dump)
+	{
+		std::ofstream output("CALLSTACK");
+		if (!output.is_open())
+		{
+			std::cout << "ERROR CREATING CALLSTACK DUMP FILE\n";
+			return;
+		}
+		for (auto it : call_stack)
+			output << it << "\n";
+	}
 }
 
 byte fontset[80] =	// from http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/
