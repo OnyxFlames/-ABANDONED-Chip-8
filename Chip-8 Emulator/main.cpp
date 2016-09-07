@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
 	{
 		handle_args(argc, argv);
 	}
-
+	std::cout << "Size: " << sizeof(Chip8) << "\n";
 	Chip8 chip8;
 	if (rom_name != "")
 		chip8.load_rom(rom_name);

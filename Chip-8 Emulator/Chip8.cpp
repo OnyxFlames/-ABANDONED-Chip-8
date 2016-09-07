@@ -7,10 +7,25 @@
 #include <random>
 
 
+std::array<std::array<sf::RectangleShape, 64>, 32> screen;
+std::array<std::array<bool, 64>, 32> screen_bits;
+
 Chip8::Chip8()
 {
 	window.create(sf::VideoMode(64 * pixel_size, 32 * pixel_size), emulation_title + "NO ROM"); 
+	//window.setFramerateLimit(60);
 	loadFont();
+	for (unsigned x = 0; x <= 63; x++)
+	{
+		for (unsigned y = 0; y <= 31; y++)
+		{
+			//std::cout << "X: " << x << " Y: " << y << "\n";
+			screen[y][x].setSize(sf::Vector2f((float)pixel_size, (float)pixel_size));
+			screen[y][x].setPosition((float)x*pixel_size, (float)y*pixel_size);
+			screen[y][x].setFillColor(sf::Color::White);
+			//screen_bits[y][x] = true;
+		}
+	}
 }
 
 void Chip8::run()
@@ -54,6 +69,8 @@ bool Chip8::load_rom(const std::string ROM_location)
 		while (!ROM.eof())
 			ROM_DATA[it++] = ROM.get();
 		ROM.close();
+		eof_rom = it;
+		std::cout << "ROM END: " << eof_rom << "\n";
 		while (it < 0x1000)
 			ROM_DATA[it++] = 0xFF;
 		return true;
@@ -72,7 +89,7 @@ void Chip8::input()
 {
 	if (!window.isOpen())
 		is_open = false;
-	//TODO: Add the value of the i register to the bottom of the memory block page.
+
 	const int text_spacing(56), vertical_limit(-3810);
 	while (window.pollEvent(event))
 	{
@@ -103,8 +120,7 @@ void Chip8::input()
 			case sf::Keyboard::Tab:
 				if (debug_flag)
 				{
-					// switch between displaying memory or callstack
-					show_memory = !show_memory;
+					show_memory = !show_memory;	// switch between displaying memory or callstack
 					debuginfo_updated = false;
 				}
 				break;
@@ -114,6 +130,26 @@ void Chip8::input()
 					window.setTitle(emulation_title + "(PAUSED)");
 				else
 					window.setTitle(emulation_title);
+				break;
+				// Supported keys.
+			case sf::Keyboard::Num1:
+			case sf::Keyboard::Num2:
+			case sf::Keyboard::Num3:
+			case sf::Keyboard::Num4:
+			case sf::Keyboard::Q:
+			case sf::Keyboard::W:
+			case sf::Keyboard::E:
+			case sf::Keyboard::R:
+			case sf::Keyboard::A:
+			case sf::Keyboard::S:
+			case sf::Keyboard::D:
+			case sf::Keyboard::F:
+			case sf::Keyboard::Z:
+			case sf::Keyboard::X:
+			case sf::Keyboard::C:
+			case sf::Keyboard::V:
+				if (keypress_awaited)
+					registers[keypress_register] = sfkeytohexkey(event.key.code);
 				break;
 			default:
 				std::cout << "UNSUPPORTED KEYCODE\n";
@@ -133,21 +169,22 @@ void Chip8::draw()
 	}
 	else
 	{
-		window.clear(sf::Color::Black);
-		/*for (auto _ : screen)
-		{
-			for (auto __ : _)
+			window.clear(sf::Color::Black);
+			for (unsigned x = 0; x <= 63; x++)
 			{
-				if (__.is_set())
+				for (unsigned y = 0; y <= 31; y++)
 				{
-					window.draw(__.get_pixel());
+					if (screen_bits[y][x] == true)
+					{
+						window.draw(screen[y][x]);
+					}
 				}
 			}
-		}*/
-				// You only wanna display the FPS if it's set to red(which means debug data was loaded)
-		if (fps_text.getColor() == sf::Color::Red)
-			window.draw(fps_text);
-		window.display();
+			// You only wanna display the FPS if it's set to red(which means debug data was loaded)
+			if (fps_text.getColor() == sf::Color::Red)
+				window.draw(fps_text);
+
+			window.display();
 	}
 }
 void Chip8::update()
@@ -164,9 +201,36 @@ void Chip8::update()
 			winsize_updated = true;
 		}
 	}
+
 	// always update debug info, but nothing else when paused.
 	if (pause_emulation)
 			return;
+
+	// update pixels
+	for (unsigned x = 0; x <= 63; x++)
+	{
+		for (unsigned y = 0; y <= 31; y++)
+		{
+			if (screen_bits[y][x] == true)
+			{
+				screen[y][x].setPosition((float)x*pixel_size, (float)y*pixel_size);
+			}
+			else
+				screen[y][x].setPosition(-1 * pixel_size, -1 * pixel_size);
+		}
+	}
+	if (sound_time > 0)
+	{
+		std::cout << "BEEP\a";
+	}
+	if (increment_clock.getElapsedTime().asSeconds() >= 1.0f / 60)
+	{
+		increment_clock.restart();
+		if(delay_time > 0)
+			delay_time--;
+		if(sound_time > 0)
+			sound_time--;
+	}
 
 	// TODO: include check for sound and delay clocks here
 }
@@ -182,7 +246,7 @@ void Chip8::read()
 
 	byte instruct_buff[2];
 
-	instruct_buff[0] = ROM_DATA[pc++]; instruct_buff[1] = ROM_DATA[pc];
+	instruct_buff[0] = ROM_DATA[pc++]; instruct_buff[1] = ROM_DATA[pc++];
 	
 	unsigned short jmp = 0x0000;
 	unsigned short opcode = Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] });
@@ -220,12 +284,14 @@ void Chip8::read()
 		stack.push(pc);
 		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
 		pc = jmp;
+		std::cout << "Jumping to: " << std::hex << jmp << "\n";
 		break;
 	case 0x03:	// if VX == NN skip next instruction
 		call_stack.push_back("0x3XNN - if VX == NN skip next instruction.");
 		if (registers[get_right(instruct_buff[0])] == instruct_buff[1])
 		{
 			pc += 2;
+			call_stack.push_back("SKIPPED");
 		}
 		break;
 	case 0x04:	// if VX != NN skip the next two
@@ -233,6 +299,7 @@ void Chip8::read()
 		if (registers[get_right(instruct_buff[0])] != instruct_buff[1])
 		{
 			pc += 2;
+			call_stack.push_back("SKIPPED");
 		}
 		break;
 	case 0x05:	// if VX == VY skip the next two
@@ -245,6 +312,7 @@ void Chip8::read()
 		if (registers[get_right(instruct_buff[0])] == registers[get_left(instruct_buff[1])])
 		{
 			pc += 2;
+			call_stack.push_back("SKIPPED");
 		}
 		break;
 	case 0x06:	// sets VX to NN
@@ -323,25 +391,22 @@ void Chip8::read()
 			break;
 		}
 		call_stack.push_back("0x9XY0 - if VX != VY skip next instruction");
-		if (get_right(instruct_buff[0]) != get_left(instruct_buff[1]))
+		if (registers[get_right(instruct_buff[0])] != registers[get_left(instruct_buff[1])])
 		{
 			pc += 2;
+			call_stack.push_back("SKIPPED");
 		}
 		break;
 	case 0x0A:	// hexadecimal A - ANNN: set i to NNN
 		call_stack.push_back("0xANNN - i = NNN");
-		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
-		//jmp += get_right(instruct_buff[0]);
-		//jmp <<= 8;
-		//jmp += instruct_buff[1];
+		std::cout << "Debug ANNN: " << std::hex << Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) << "\n";
+		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xfff);
 		i = jmp;
+		std::cout << "i is now: " << std::hex << i << "\n";
 		break;
 	case 0x0B:	// hexadecimal B - BNNN: jump to NNN + V0
 		call_stack.push_back("0xBNNN - jump to NNN + V0");
-		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
-		//jmp += get_right(instruct_buff[0]);
-		//jmp <<= 8;
-		//jmp += instruct_buff[1];
+		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xfff);
 		pc = (jmp + registers[0x00]);
 		break;
 	case 0x0C:	// hexadecimal C - sets VX to the result of (rand() & NN)
@@ -350,21 +415,26 @@ void Chip8::read()
 		break;
 	case 0x0D:	// hexadecimal D - draw sprite at VX VY with a height of N and width of 8
 		call_stack.push_back("0xDXYN - draw sprite at VX VY, N high[UNIMPLEMENTED]");
+		// TODO: Rewrite draw opcode from the ground up, look into other emulators to see how their implementation goes about it
 		{
 			byte x(Onyx::get_right(instruct_buff[0])), y(Onyx::get_left(instruct_buff[1])), height = Onyx::get_right(instruct_buff[1]);
 			for (unsigned it = 0; it < height; it++)
 			{
-				for (byte it2 = 0x1; it2 < 0xF; it2++)
+				for (byte it2 = 0x0; it2 < 0x8; it2++)
 				{
-					if ((i & it2) == 0x1)
+					if ((memory[i] & (0x80 >> it2)) != 0x0)
 					{
-						if (screen[x][y + it].is_set())
+						if (screen_bits[y + it2][x + it] == true)
 						{
 							registers[0x0F] = 1;
-							screen[x][y + it].set_pixel(false);
+							screen_bits[y + it2][x + it] = false;
 						}
 						else
-							screen[x][y + it].set_pixel(true);
+							screen_bits[y][x + it] = true;
+					}
+					else
+					{
+						
 					}
 				}
 			}
@@ -375,13 +445,22 @@ void Chip8::read()
 		{
 		case 0x9E:
 			call_stack.push_back("0xEX9E - Skips next instruction if key in VX is pressed[UNIMPLEMENTED]");
-
+			if (sf::Keyboard::isKeyPressed(hexkeytosfkey(registers[get_right(instruct_buff[0])])))
+			{	
+				pc += 2;
+				call_stack.push_back("SKIPPED");
+			}
 			break;
 		case 0xA1:
 			call_stack.push_back("0xEXA1 - Skips next instruction if key in VX isn't pressed[UNIMPLEMENTED]");
-
+			if (!sf::Keyboard::isKeyPressed(hexkeytosfkey(registers[get_right(instruct_buff[0])])))
+			{
+				pc += 2;
+				call_stack.push_back("SKIPPED");
+			}
 			break;
 		default:
+			call_stack.push_back("INVALID OPCODE HERE");
 			invalid_opcode(instruct_buff[0], instruct_buff[1]);
 			break;
 		}
@@ -390,78 +469,79 @@ void Chip8::read()
 		switch (instruct_buff[1])
 		{
 		case 0x07:
-			call_stack.push_back("0xFX07 - Sets VX to value of delay timer.[UNIMPLEMENTED]");
-
+			call_stack.push_back("0xFX07 - Sets VX to value of delay timer.");
+			registers[get_right(instruct_buff[0])] = delay_time;
 			break;
 		case 0x0A:
 			call_stack.push_back("0xFX0A - Key press is waited and stored in VX[UNIMPLEMENTED]");
-
+			keypress_awaited = true;
+			keypress_register = get_right(instruct_buff[0]);
 			break;
 		case 0x15:
 			call_stack.push_back("0xFX15 - set delay timer to VX");
-			delay_time = sf::seconds(registers[get_right(instruct_buff[0])]);
+			delay_time = registers[get_right(instruct_buff[0])];
 			break;
 		case 0x18:
 			call_stack.push_back("0xFX18 - set sound timer to VX");
-			sound_time = sf::seconds(registers[get_right(instruct_buff[0])]);
+			sound_time = registers[get_right(instruct_buff[0])];
 			break;
 		case 0x1E:
 			call_stack.push_back("0xFX1E - adds VX to I");
 			i += registers[get_right(instruct_buff[0])];
 			break;
 		case 0x29:
-			call_stack.push_back("0xFX29 - sets i to the location of sprite for char in VX[UNIMPLEMENTED]");
+			call_stack.push_back("0xFX29 - sets i to the location of sprite for char in VX");
 			{
 			const short font_origin = 0x0000;
 			const short font_byte_size = 6;
 			switch (registers[get_right(instruct_buff[0])])
 			{
-			case '0':
+			case 0:
 				i = font_origin;
 				break;
-			case '1':
+			case 1:
 				i = font_origin + font_byte_size * 1;
 				break;
-			case '2':
+			case 2:
 				i = font_origin + font_byte_size * 2;
 				break;
-			case '3':
+			case 3:
 				i = font_origin + font_byte_size * 3;
 				break;
-			case '4':
+			case 4:
 				i = font_origin + font_byte_size * 4;
 				break;
-			case '5':
+			case 5:
 				i = font_origin + font_byte_size * 5;
 				break;
-			case '6':
+			case 6:
 				i = font_origin + font_byte_size * 6;
 				break;
-			case '7':
+			case 7:
 				i = font_origin + font_byte_size * 7;
 				break;
-			case '8':
+			case 8:
 				i = font_origin + font_byte_size * 8;
 				break;
-			case '9':
+			case 9:
 				i = font_origin + font_byte_size * 9;
 				break;
-			case 'A':
+			case 10:
 				i = font_origin + font_byte_size * 10;
 				break;
-			case 'B':
+			case 11:
 				i = font_origin + font_byte_size * 11;
 				break;
-			case 'C':
+			case 12:
 				i = font_origin + font_byte_size * 12;
 				break;
-			case 'D':
+			case 13:
 				i = font_origin + font_byte_size * 13;
 				break;
-			case 'E':
+			case 14:
 				i = font_origin + font_byte_size * 14;
 				break;
-			case 'F':
+			case 15:
 				i = font_origin + font_byte_size * 15;
 				break;
 			default:
@@ -471,7 +551,14 @@ void Chip8::read()
 			}
 			break;
 		case 0x33:
-			call_stack.push_back("0xFX33 - stores BCD of VX in memory. (look up for details)0[UNIMPLEMENTED]");
+			call_stack.push_back("0xFX33 - stores BCD of VX in memory. (look up for details)0[UNIMPLEMENTED?]");
+			{
+				byte buff = registers[get_right(instruct_buff[0])];
+				memory[i] = buff % 100;
+				memory[i + 1] = buff % 10;
+				buff /= 100;
+				memory[i + 2] = buff;
+			}
 			break;
 		case 0x55:
 			call_stack.push_back("0xFX55 - Stores V0 to VX to memory starting at i");
@@ -490,11 +577,13 @@ void Chip8::read()
 				run();
 				break;
 			}
-				invalid_opcode(instruct_buff[0], instruct_buff[1]);
+			call_stack.push_back("INVALID OPCODE HERE");
+			invalid_opcode(instruct_buff[0], instruct_buff[1]);
 			break;
 		}
 		break;
 	default:
+		call_stack.push_back("INVALID OPCODE HERE");
 		invalid_opcode(instruct_buff[0], instruct_buff[1]);
 		break;
 	}
@@ -505,7 +594,8 @@ void Chip8::op_clear_screen()
 	window.clear();
 }
 void Chip8::loadFont()
-{						//font set size is 80 bytes.
+{
+	// font set size is 80 bytes.
 	for (byte it = 0; it < 80; it++)
 		memory[it] = fontset[it];
 }

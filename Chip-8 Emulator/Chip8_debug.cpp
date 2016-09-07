@@ -104,7 +104,7 @@ void Chip8::update_frame_counter(unsigned &frame_counter)
 	{
 		if (perf_clock.getElapsedTime() >= sf::milliseconds(1000))
 		{
-			fps_text.setString("FPS: " + std::to_string(frame_counter));
+			fps_text.setString("FPS: " + std::to_string(frame_counter) + " pc: " + std::to_string(pc));
 			frame_counter = 0;
 			perf_clock.restart();
 		}
@@ -211,7 +211,7 @@ void Chip8::draw_debug()
 	}
 }
 
-void Chip8::update_debugtext(const int _spacing, const int _limit, const char _direction)
+void Chip8::update_debugtext(const int &_spacing, const int &_limit, const char _direction)
 {
 	if (_direction == DOWN)
 	{
@@ -262,6 +262,119 @@ void Chip8::dump_callstack(bool _dump)
 		}
 		for (auto it : call_stack)
 			output << it << "\n";
+	}
+}
+
+byte sfkeytohexkey(short sfkey)
+{
+	switch (sfkey)
+	{
+	case sf::Keyboard::Num1:
+		return 1;
+		break;
+	case sf::Keyboard::Num2:
+		return 2;
+		break;
+	case sf::Keyboard::Num3:
+		return 3;
+		break;
+	case sf::Keyboard::Num4:
+		return 12;
+		break;
+	case sf::Keyboard::Q:
+		return 4;
+		break;
+	case sf::Keyboard::W:
+		return 5;
+		break;
+	case sf::Keyboard::E:
+		return 6;
+		break;
+	case sf::Keyboard::R:
+		return 13;
+		break;
+	case sf::Keyboard::A:
+		return 7;
+		break;
+	case sf::Keyboard::S:
+		return 8;
+		break;
+	case sf::Keyboard::D:
+		return 9;
+		break;
+	case sf::Keyboard::F:
+		return 14;
+		break;
+	case sf::Keyboard::Z:
+		return 10;
+		break;
+	case sf::Keyboard::X:
+		return 0;
+		break;
+	case sf::Keyboard::C:
+		return 11;
+		break;
+	case sf::Keyboard::V:
+		return 15;
+		break;
+	default:
+		return -1;
+	}
+}
+sf::Keyboard::Key hexkeytosfkey(byte hexkey)
+{
+	switch (hexkey)
+	{
+	case 1:
+		return sf::Keyboard::Num1;
+		break;
+	case 2:
+		return sf::Keyboard::Num2;
+		break;
+	case 3:
+		return sf::Keyboard::Num3;
+		break;
+	case 12:
+		return sf::Keyboard::Num4;
+		break;
+	case 4:
+		return sf::Keyboard::Q;
+		break;
+	case 5:
+		return sf::Keyboard::W;
+		break;
+	case 6:
+		return sf::Keyboard::E;
+		break;
+	case 13:
+		return sf::Keyboard::R;
+		break;
+	case 7:
+		return sf::Keyboard::A;
+		break;
+	case 8:
+		return sf::Keyboard::S;
+		break;
+	case 9:
+		return sf::Keyboard::D;
+		break;
+	case 14:
+		return sf::Keyboard::F;
+		break;
+	case 10:
+		return sf::Keyboard::Z;
+		break;
+	case 0:
+		return sf::Keyboard::X;
+		break;
+	case 11:
+		return sf::Keyboard::C;
+		break;
+	case 15: 
+		return sf::Keyboard::V;
+		break;
+	default:
+		return sf::Keyboard::Escape;
 	}
 }
 

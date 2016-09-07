@@ -84,13 +84,11 @@
     <ClCompile Include="Chip8.cpp" />
     <ClCompile Include="Chip8_debug.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Pixel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Arguments.hpp" />
     <ClInclude Include="byte.hpp" />
     <ClInclude Include="Chip8.hpp" />
-    <ClInclude Include="Pixel.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
