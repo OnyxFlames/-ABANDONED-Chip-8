@@ -12,18 +12,18 @@ std::string rom_name = "";
 int main(int argc, char* argv[])
 {
 
-	assert(sizeof(short) * 8 == 16);
+	assert((sizeof(short) * 8) == 16);
 
 	if (argc < 2) 
 	{
-		std::cout << "Usage:\tChip8 <ROM> OR\n\tChip8 <args../ROM>\n";
+		std::cout << "Usage:\t" << argv[0] << " <args>";
 		return -1;
 	}
 	else
 	{
 		handle_args(argc, argv);
 	}
-	std::cout << "Size: " << sizeof(Chip8) << "\n";
+	std::cout << "Chip8 Object Size: " << sizeof(Chip8) << " bytes.\n";
 	Chip8 chip8;
 	if (rom_name != "")
 		chip8.load_rom(rom_name);

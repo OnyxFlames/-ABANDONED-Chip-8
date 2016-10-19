@@ -278,6 +278,7 @@ void Chip8::read()
 		call_stack.push_back("0x1NNN - Jump to NNN");
 		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xff);
 		pc = jmp;
+		std::cout << "Jumping to: " << std::hex << jmp << "\n";
 		break;
 	case 0x02:	// call subroutine
 		call_stack.push_back("0x2NNN - Call subroutine at NNN");
@@ -403,6 +404,7 @@ void Chip8::read()
 		jmp = (Onyx::to_ushort({ instruct_buff[0], instruct_buff[1] }) & 0xfff);
 		i = jmp;
 		std::cout << "i is now: " << std::hex << i << "\n";
+		//getchar();
 		break;
 	case 0x0B:	// hexadecimal B - BNNN: jump to NNN + V0
 		call_stack.push_back("0xBNNN - jump to NNN + V0");
@@ -417,24 +419,21 @@ void Chip8::read()
 		call_stack.push_back("0xDXYN - draw sprite at VX VY, N high[UNIMPLEMENTED]");
 		// TODO: Rewrite draw opcode from the ground up, look into other emulators to see how their implementation goes about it
 		{
+			registers[0x0F] = 0;
 			byte x(Onyx::get_right(instruct_buff[0])), y(Onyx::get_left(instruct_buff[1])), height = Onyx::get_right(instruct_buff[1]);
-			for (unsigned it = 0; it < height; it++)
+			unsigned short pixel;
+			for (unsigned _y = 0; _y < height; _y++)
 			{
-				for (byte it2 = 0x0; it2 < 0x8; it2++)
+				pixel = memory[i + _y];
+				for (unsigned _x = 0; _x < 8; _x++)
 				{
-					if ((memory[i] & (0x80 >> it2)) != 0x0)
+					if ((pixel & (0x80 >> _x)) != 0x0)
 					{
-						if (screen_bits[y + it2][x + it] == true)
+						if (screen_bits[(x + _x)][(y + _y)] == true)
 						{
 							registers[0x0F] = 1;
-							screen_bits[y + it2][x + it] = false;
 						}
-						else
-							screen_bits[y][x + it] = true;
-					}
-					else
-					{
-						
+						screen_bits[x + _x][y + _y] = true;
 					}
 				}
 			}
